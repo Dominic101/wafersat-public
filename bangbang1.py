@@ -73,7 +73,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
         pass
         
     w = 2  #wait inbetween steps
-    
+    current_DC = 0    
     for a in range(t):
         temp = [0]
         temp[0] = a
@@ -141,7 +141,7 @@ def bang_bang(temp, goal, delta):
         heater.ChangeDutyCycle(100)
         current_DC = 100
        # setup_heaters(ser, 0, 50) #turns on heaters, 100% duty cycle
-        return current_DC
+    return current_DC
 
 def bang_bang2(temp,goal,delta):
     '''
@@ -157,7 +157,7 @@ def bang_bang2(temp,goal,delta):
     return current_DC
 
 def PD(temp, goal, delta):
-    
+    global previous_error
     if goal-temp <= 0:
         heater.ChangeDutyCycle(0.0)
         return 0.0
@@ -169,7 +169,7 @@ def PD(temp, goal, delta):
         error = goal-temp
         derivative_error = error - previous_error
         
-        global previous_error = error
+        previous_error = error
         
         D = derivative_gain_value*derivative_error
         P = proportional_gain_value*error
