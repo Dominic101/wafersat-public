@@ -10,7 +10,7 @@ Simple thermal controller
 Records the temperature of the 8 RTD sensors. Based on the average temperature of 
 sensors, the algorithm turns the heaters on or off (100% duty cycle)
 """
-
+import sh
 import time
 import RPi.GPIO as GPIO
 import csv
@@ -27,6 +27,7 @@ GPIO.setup(25,GPIO.OUT) #in the future, pin24 will also be an out for the heater
 heater = GPIO.PWM(25,20) #frequency is 20 (?)
 heater.start(0) #starts the heaters, duty cycle 0
 current_DC = 0.0
+previous_error = 0
 
 
 # filename formatting
@@ -72,7 +73,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
         pass
         
     w = 2  #wait inbetween steps
-    
+    current_DC = 0    
     for a in range(t):
         temp = [0]
         temp[0] = a
@@ -81,6 +82,10 @@ def Qi_track(filename, goal, delta, t, control_alg):
            if i !=2 and i != 3:
           	 temp.append(rtd.get_temp(i))
 	
+        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
+        temp.append(cpu_temp)
+        temp.append(current_DC)
+        
         
         #printing out values every two seconds
         if a%4 == 0:        
@@ -136,7 +141,7 @@ def bang_bang(temp, goal, delta):
         heater.ChangeDutyCycle(100)
         current_DC = 100
        # setup_heaters(ser, 0, 50) #turns on heaters, 100% duty cycle
-        return current_DC
+    return current_DC
 
 def bang_bang2(temp,goal,delta):
     '''
@@ -150,9 +155,38 @@ def bang_bang2(temp,goal,delta):
         heater.ChangeDutyCycle(100)  
         current_DC = 100
     return current_DC
+
+def PD(temp, goal, delta):
+    global previous_error
+    if goal-temp <= 0:
+        heater.ChangeDutyCycle(0.0)
+        return 0.0
+    else: 
+        #tuning coefficients
+        proportional_gain_value = 0.82
+        derivative_gain_value = 0.40
+    
+        error = goal-temp
+        derivative_error = error - previous_error
+        
+        previous_error = error
+        
+        D = derivative_gain_value*derivative_error
+        P = proportional_gain_value*error
+        PD_output = P + D
+        
+        if PD_output < 0 :
+            PD_output = 0.0
+        if PD_output > 100:
+            PD_output = 100
+        heater.ChangeDutyCycle(PD_output)
+        return PD_output
+    
+    
+    
 try:
     print('trial started')
-    Qi_track(filename, 35, 2, 55500,bang_bang2)
+    Qi_track(filename, 35, 2, 55500, bang_bang2)
 except KeyboardInterrupt:
     print ('\n')
 finally:

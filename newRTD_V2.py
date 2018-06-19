@@ -13,8 +13,7 @@ from gpiozero import LED, MCP3208
 from time import sleep
 import time
 import csv
-import pylab as plt
-from mcp3208 import MCP3208
+#from mcp3208 import MCP3208
 
 #led = LED(21) #initializes status LED connected to GPIO21
 adc = MCP3208()
