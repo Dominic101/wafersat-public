@@ -106,7 +106,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
             
             
             print('Average temperature of the board is: ', average_temp)
-            control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
+            current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             print('Current duty cycle is set to: ', current_DC)
             
             
@@ -136,7 +136,7 @@ def bang_bang(temp, goal, delta):
         heater.ChangeDutyCycle(100)
         current_DC = 100
        # setup_heaters(ser, 0, 50) #turns on heaters, 100% duty cycle
- 
+        return current_DC
 
 def bang_bang2(temp,goal,delta):
     '''
@@ -147,9 +147,9 @@ def bang_bang2(temp,goal,delta):
         heater.ChangeDutyCycle(0)
         current_DC = 0.0
     elif goal-temp>=delta:
-        heater.ChangeDuty(100)  
+        heater.ChangeDutyCycle(100)  
         current_DC = 100
-       
+    return current_DC
 try:
     print('trial started')
     Qi_track(filename, 35, 2, 55500,bang_bang2)
