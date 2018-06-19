@@ -27,6 +27,7 @@ GPIO.setup(25,GPIO.OUT) #in the future, pin24 will also be an out for the heater
 heater = GPIO.PWM(25,20) #frequency is 20 (?)
 heater.start(0) #starts the heaters, duty cycle 0
 current_DC = 0.0
+previous_error = 0
 
 
 # filename formatting
@@ -150,9 +151,38 @@ def bang_bang2(temp,goal,delta):
         heater.ChangeDutyCycle(100)  
         current_DC = 100
     return current_DC
+
+def PD(temp, goal, delta):
+    
+    if goal-temp <= 0:
+        heater.ChangeDutyCycle(0.0)
+        return 0.0
+    else: 
+        #tuning coefficients
+        proportional_gain_value = 0.82
+        derivative_gain_value = 0.40
+    
+        error = goal-temp
+        derivative_error = error - previous_error
+        
+        global previous_error = error
+        
+        D = derivative_gain_value*derivative_error
+        P = proportional_gain_value*error
+        PD_output = P + D
+        
+        if PD_output < 0 :
+            PD_output = 0.0
+        if PD_output > 100:
+            PD_output = 100
+        heater.ChangeDutyCycle(PD_output)
+        return PD_output
+    
+    
+    
 try:
     print('trial started')
-    Qi_track(filename, 35, 2, 55500,bang_bang2)
+    Qi_track(filename, 35, 2, 55500, bang_bang2)
 except KeyboardInterrupt:
     print ('\n')
 finally:
