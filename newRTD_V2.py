@@ -1,11 +1,8 @@
 """
 Author: Raul Largaespada, modified by Charles Lindsy on 2.01.18 for PCBSat Rev1
-
 For WaferSat UROP Thermal Test Circuit with PCBSat Rev1
-
 Python file for using Raspberry Pi as a data acquisition unit for measuring 
 temperatures using RTDs. 
-
 Note that this file assumes that all 8 channels are functioning and connected 
 to RTDs. If not all channels are being used, specify how many channels are 
 being used in the plot_temp function and make sure your circuit is only using 
@@ -19,7 +16,7 @@ import csv
 import pylab as plt
 from mcp3208 import MCP3208
 
-led = LED(21) #initializes status LED connected to GPIO21
+#led = LED(21) #initializes status LED connected to GPIO21
 adc = MCP3208()
 
 #RTD0 = MCP3208(channel=0, port=0, device=0) #ADC input 0 settings using MCP3208 hardware interface (MOSI: GPIO10, MISO: GPIO9, CLK: GPIO11, CS0: GPIO8)
@@ -38,7 +35,7 @@ adc = MCP3208()
 #sleep(2)
 #led.off()
 
-del led
+#del led
 
 def comm_test(): #simple communication test that flashes LED.
     led = LED(21)    
@@ -170,7 +167,6 @@ def calibration_test(test_length,sample_rate,filename=None):
     """
     For calibrating Pi MCP3208 with signal generator. Modification of collect_data.
     Records and prints voltages instead of temperatures.
-
     To display but not record data, only input a test length parameter. To record 
     data, both a test length and filename are required. New csv file is saved to
     same folder as python file RTD.py is located. 
@@ -264,7 +260,6 @@ tempvec = []
 #print("start collect")
 #for c in range(0,1000):
 rtd  = 5
-
 for i in range(0,5*60*2): #for 1 minute
   
   #t1 = time.time()
@@ -273,37 +268,30 @@ for i in range(0,5*60*2): #for 1 minute
   for i in range(0,15):
      x = get_temp(rtd)
      l.append(x)	
-
   avg = 0
-
   for e in l:
       avg+=e
-
   avg = avg/len(l)
   
   t2 = time.time()
   tvec.append(t2)
   tempvec.append(avg)
-
   print(avg)
   #l2.append(avg)
   sleep(0.5)
   #print(avg)
   #sleep(0.05)
-
 print(tvec)
 print(tempvec)
 #print("end collect")
 #l = []
 #l = l2
-
 #min  = l[1]
 #max = l[1]
 """
 """for i in range(1,len(l)):
 	if l[i] < l[i-1]:
 		min = l[i]
-
 for i in range(1,len(l)):
         if l[i] > l[i-1]:
                 max = l[i]
