@@ -119,14 +119,14 @@ def Qi_track(filename, goal, delta, t):
         temp[0] = a
 	
         for i in range(0,8): #recording new values
-            if i !=2:
-                temp.append(rtd.get_temp(i))
+           if i !=2 and i != 3:
+          	 temp.append(rtd.get_temp(i))
 	
         
         #printing out values every two seconds
         if a%2 ==0:        
                 #.format(*RTD_val)) #0-1023 value from MCP3008
-            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|{7:^8}|'
+            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|'
             .format(*temp)) #temperature calculated from raw data.
                 
             print("_"*72)
@@ -139,10 +139,10 @@ def Qi_track(filename, goal, delta, t):
                 dat = csv.writer(file)
                 dat.writerow(temp)
             sum_temps = 0.0
-            for i in range(1,8):
+            for i in range(1,7):
                     sum_temps += temp[i]
                 
-            average_temp = sum_temps/7.0
+            average_temp = sum_temps/6.0
             print('Average temperature of the board is: ', average_temp)
             bang_bang(average_temp, goal, delta) #turns on/off heaters as necessary
             a+=w #keeps track of step
