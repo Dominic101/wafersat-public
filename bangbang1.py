@@ -39,7 +39,7 @@ print(filename)
 
 
     
-def Qi_track(filename, goal, delta, t):
+def Qi_track(filename, goal, delta, t, control_alg):
     """
     Function measures values from sensor and MCP3008 and writes temperature 
     values to a csv file at a rate of 1/w samples a second. It prints out and
@@ -106,7 +106,7 @@ def Qi_track(filename, goal, delta, t):
             
             
             print('Average temperature of the board is: ', average_temp)
-            bang_bang(average_temp, goal, delta) #turns on/off heaters as necessary
+            control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             print('Current duty cycle is set to: ', current_DC)
             
             
@@ -136,11 +136,23 @@ def bang_bang(temp, goal, delta):
         heater.ChangeDutyCycle(100)
         current_DC = 100
        # setup_heaters(ser, 0, 50) #turns on heaters, 100% duty cycle
-       
+ 
+
+def bang_bang2(temp,goal,delta):
+    '''
+    brings temp up to desired value and then turns heaters on when it falls below a delta range
+    '''
+    error=temp-goal
+    if error>=0:
+        heater.ChangeDutyCycle(0)
+        current_DC = 0.0
+    elif goal-temp>=delta:
+        heater.ChangeDuty(100)  
+        current_DC = 100
        
 try:
     print('trial started')
-    Qi_track(filename, 35, 2, 55500)
+    Qi_track(filename, 35, 2, 55500,bang_bang2)
 except KeyboardInterrupt:
     print ('\n')
 finally:
