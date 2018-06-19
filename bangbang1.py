@@ -147,7 +147,7 @@ def bang_bang2(temp,goal,delta):
         heater.ChangeDutyCycle(0)
         current_DC = 0.0
     elif goal-temp>=delta:
-        heater.ChangeDuty(100)  
+        heater.ChangeDutyCycle(100)  
         current_DC = 100
        
 try:
