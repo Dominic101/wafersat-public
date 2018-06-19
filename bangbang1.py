@@ -10,7 +10,7 @@ Simple thermal controller
 Records the temperature of the 8 RTD sensors. Based on the average temperature of 
 sensors, the algorithm turns the heaters on or off (100% duty cycle)
 """
-
+import sh
 import time
 import RPi.GPIO as GPIO
 import csv
@@ -82,6 +82,10 @@ def Qi_track(filename, goal, delta, t, control_alg):
            if i !=2 and i != 3:
           	 temp.append(rtd.get_temp(i))
 	
+        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
+        temp.append(cpu_temp)
+        temp.append(current_DC)
+        
         
         #printing out values every two seconds
         if a%4 == 0:        
