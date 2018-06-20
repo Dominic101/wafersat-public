@@ -9,26 +9,24 @@ being used in the plot_temp function and make sure your circuit is only using
 the first i channels on the MCP3208, where i is the number of desired channels.
 """
 
-from gpiozero import LED, MCP3208
+from gpiozero import MCP3208
 from time import sleep
 import time
 import csv
-#from mcp3208 import MCP3208
-
+import RPi.GPIO as GPIO
 #led = LED(21) #initializes status LED connected to GPIO21
 adc = MCP3208()
 
-#RTD0 = MCP3208(channel=0, port=0, device=0) #ADC input 0 settings using MCP3208 hardware interface (MOSI: GPIO10, MISO: GPIO9, CLK: GPIO11, CS0: GPIO8)
-#RTD1 = MCP3208(channel=1, port=0, device=0) 
-#RTD2 = MCP3208(channel=2, port=0, device=0)
-#RTD3 = MCP3208(channel=3, port=0, device=0)
-#RTD4 = MCP3208(channel=4, port=0, device=0)
-#RTD5 = MCP3208(channel=5, port=0, device=0)
-#RTD6 = MCP3208(channel=6, port=0, device=0)
-#RTD7 = MCP3208(channel=7, port=0, device=0)
+RTD0 = MCP3208(channel=0, port=0, device=0) #ADC input 0 settings using MCP3208 hardware interface (MOSI: GPIO10, MISO: GPIO9, CLK: GPIO11, CS0: GPIO8)
+RTD1 = MCP3208(channel=1, port=0, device=0) 
+RTD2 = MCP3208(channel=2, port=0, device=0)
+RTD3 = MCP3208(channel=3, port=0, device=0)
+RTD4 = MCP3208(channel=4, port=0, device=0)
+RTD5 = MCP3208(channel=5, port=0, device=0)
+RTD6 = MCP3208(channel=6, port=0, device=0)
+RTD7 = MCP3208(channel=7, port=0, device=0)
 #
-#
-#RTD_list = [RTD0, RTD1, RTD2, RTD3, RTD4, RTD5, RTD6, RTD7]
+RTD_list = [RTD0, RTD1, RTD2, RTD3, RTD4, RTD5, RTD6, RTD7]
 
 #led.on()
 #sleep(2)
@@ -72,8 +70,7 @@ def get_temp(RTD):
     RTD should be int range 0 to 7 corresponding to RTD channels
     '''
     
-    #reading = RTD_list[RTD].value #gets ADC reading from selected RTD, a float range 0-1
-    reading = float(adc.read(RTD)/4096)
+    reading = RTD_list[RTD].value #gets ADC reading from selected RTD, a float range 0-1 reading = float(adc.read(RTD)/4096)
     temp = TFD(reading)
     
     return temp
