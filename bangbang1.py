@@ -19,6 +19,7 @@ import subprocess
 from datetime import datetime
 import newRTD_V2 as rtd 
 import os
+from numpy import mean,math
 
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
@@ -156,24 +157,18 @@ def bang_bang2(temp,goal,delta):
         current_DC = 100
     return current_DC
 
-def PD(temp, goal, delta):
+def P(temp, goal, delta):
     global previous_error
     if goal-temp <= 0:
         heater.ChangeDutyCycle(0.0)
         return 0.0
     else: 
         #tuning coefficients
-        proportional_gain_value = 0.82
-        derivative_gain_value = 0.40
+        proportional_gain_value = 5
     
         error = goal-temp
-        derivative_error = error - previous_error
-        
-        previous_error = error
-        
-        D = derivative_gain_value*derivative_error
         P = proportional_gain_value*error
-        PD_output = P + D
+        PD_output = P
         
         if PD_output < 0 :
             PD_output = 0.0
@@ -181,6 +176,103 @@ def PD(temp, goal, delta):
             PD_output = 100
         heater.ChangeDutyCycle(PD_output)
         return PD_output
+    
+    
+def P2(temp,want, delta, Kp=2):
+    def get_error(temp,want,delta):
+        if abs(want-temp)<delta:
+            return 0
+        else:
+            return want-temp#check if it should be the other way around
+
+    def P_control(Kp):
+        Pt = get_error(temp,want,delta) * Kp
+        return Pt
+    PID_sum=P_control(Kp)
+    heater.ChangeDutyCycle(sigmoid(PID_sum))
+def fail_safe():
+    ''' implement if needed
+    '''
+    heater.ChangeDutyCycle(0)
+    
+def sigmoid(PID_sum):
+    '''
+    take in the value from the PID function and puts it into the sigmoid
+    function which is shifted four units to the right. The result is then scaled 
+    by 100.
+    '''
+    funct_shift=PID_sum-4
+    sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
+    return sigmoid*100
+
+    
+#def PID(temp,want, delta, Kp=2,Ki=.2,Kd=1.3,It=0,previous_error=0):
+#    def get_error(temp,want,delta):
+#        temp_avg = mean(temp[1:])
+#        if abs(want-temp_avg)<delta:
+#            return 0
+#        else:
+#            return want-temp_avg#check if it should be the other way around
+#    error=get_error(temp,want,delta)
+#    def P_control(Kp):
+#        Pt = error * Kp
+#        return Pt
+#    
+#    
+##    def I_control(It, Ki):
+##        It = It + error
+##        It = It * Ki
+##        return It
+#    
+#    
+#    def D_control(previous_error, Kd):
+#        Dt = (error-previous_error) * Kd
+#        # print(current_control_output_value, previous_control_output_value, Dt)
+#        return Dt
+#    previous_error=error
+#    PID_sum=P_control(Kp)+D_control(previous_error, Kd)
+#    heater.ChangeDutyCycle(sigmoid(PID_sum))
+#def fail_safe():
+#    ''' implement if needed
+#    '''
+#    heater.ChangeDutyCycle(0)
+#    
+#def sigmoid(PID_sum):
+#    '''
+#    take in the value from the PID function and puts it into the sigmoid
+#    function which is shifted four units to the right. The result is then scaled 
+#    by 100.
+#    '''
+#    funct_shift=PID_sum-4
+#    sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
+#    return sigmoid*100
+
+
+#def PD(temp, goal, delta):
+#    global previous_error
+#    if goal-temp <= 0:
+#        heater.ChangeDutyCycle(0.0)
+#        return 0.0
+#    else: 
+#        #tuning coefficients
+#        proportional_gain_value = 0.82
+#        derivative_gain_value = 0.40
+#    
+#        error = goal-temp
+#        derivative_error = error - previous_error
+#        
+#        previous_error = error
+#        
+#        D = derivative_gain_value*derivative_error
+#        P = proportional_gain_value*error
+#        PD_output = P + D
+#        
+#        if PD_output < 0 :
+#            PD_output = 0.0
+#        if PD_output > 100:
+#            PD_output = 100
+#        heater.ChangeDutyCycle(PD_output)
+#        return PD_output
     
     
     
