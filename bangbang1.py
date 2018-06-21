@@ -17,7 +17,7 @@ import csv
 from time import sleep
 import subprocess
 from datetime import datetime
-import newRTD_V2 as rtd 
+import current_RTD as rtd 
 import os
 from numpy import mean,math
 
@@ -41,7 +41,7 @@ print(filename)
 
 
     
-def Qi_track(filename, goal, delta, t, control_alg):
+def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     """
     Function measures values from sensor and MCP3008 and writes temperature 
     values to a csv file at a rate of 1/w samples a second. It prints out and
@@ -64,7 +64,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
     """
     
     recording = False
-    
+    start_time=time.time()
     
     try: #tells you if data is recording or not
         if '.csv' in filename:
@@ -75,7 +75,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
         
     w = 2  #wait inbetween steps
     current_DC = 0    
-    for a in range(t):
+    for a in range(t*100000):#t*100000 insures that input time dictates time of test
         temp = [0]
         temp[0] = a
 	
@@ -83,8 +83,8 @@ def Qi_track(filename, goal, delta, t, control_alg):
            if i !=2 and i != 3:
           	 temp.append(rtd.get_temp(i))
 	
-        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
-        temp.append(cpu_temp)
+#        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
+#        temp.append(cpu_temp)
         temp.append(current_DC)
         
         
@@ -112,12 +112,23 @@ def Qi_track(filename, goal, delta, t, control_alg):
             
             global current_DC
             print('Average temperature of the board is: ', average_temp)
-            current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
+            stop_heat=False
+            if time.time()-start_time>=t:
+                stop_heat=True
+            if not stop_heat:
+                current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
+            elif cool_down and stop_heat:
+                heater.ChangeDutyCycle(0)
+                if time.time()-start_time>=t+30:
+                    raise KeyboardInterrupt('cool_down complete')
+            else:
+                raise KeyboardInterrupt('heat test done')
             print('Current duty cycle is set to: ', current_DC)
             
             
             a+=w #keeps track of step
             sleep(w) #sleeps beforen next iteration    
+        
 
 def bang_bang(temp, goal, delta):
     """
@@ -177,7 +188,7 @@ def P(temp, goal, delta):
             PD_output = 100
         heater.ChangeDutyCycle(PD_output)
         return PD_output
-    
+
     
 def P2(temp,want, delta, Kp=2):
     def get_error(temp,want,delta):
@@ -193,6 +204,7 @@ def P2(temp,want, delta, Kp=2):
     current_DC = sigmoid(PID_sum)
     heater.ChangeDutyCycle(current_DC)
     return current_DC
+
 
 def fail_safe():
     ''' implement if needed
@@ -282,7 +294,8 @@ def sigmoid(PID_sum):
     
 try:
     print('trial started')
-    Qi_track(filename, 35, 2, 55500, P2)
+    #filename, goal temp, delta, seconds to run with heat, control_alg, 
+    Qi_track(filename, 35, 2, 180, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
