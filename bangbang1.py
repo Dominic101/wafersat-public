@@ -11,10 +11,10 @@ Records the temperature of the 8 RTD sensors. Based on the average temperature o
 sensors, the algorithm turns the heaters on or off (100% duty cycle)
 """
 import sh
-import time
+from time import sleep
+import time as timey
 import RPi.GPIO as GPIO
 import csv
-from time import sleep
 import subprocess
 from datetime import datetime
 import current_RTD as rtd 
@@ -64,7 +64,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     """
     
     recording = False
-    start_time=time.time()
+    start_time=timey.time()
     
     try: #tells you if data is recording or not
         if '.csv' in filename:
@@ -113,13 +113,13 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             global current_DC
             print('Average temperature of the board is: ', average_temp)
             stop_heat=False
-            if time.time()-start_time>=t:
+            if timey.time()-start_time>=t:
                 stop_heat=True
             if not stop_heat:
                 current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             elif cool_down and stop_heat:
                 heater.ChangeDutyCycle(0)
-                if time.time()-start_time>=t+30:
+                if timey.time()-start_time>=t+30:
                     raise KeyboardInterrupt('cool_down complete')
             else:
                 raise KeyboardInterrupt('heat test done')
@@ -295,7 +295,7 @@ def sigmoid(PID_sum):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 180, P2, cool_down=True)
+    Qi_track(filename, 35, 2, 120, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
