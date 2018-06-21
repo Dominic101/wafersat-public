@@ -2,7 +2,7 @@
 """
 Created on Mon Jun 18 10:38:42 2018
 
-@author: Karolina Podsada and Dominic Maggio 
+@author: Karolina Podsada and Dominic Maggio and George Chen 
 
 Bang-Bang Controller 
 Simple thermal controller
@@ -110,7 +110,7 @@ def Qi_track(filename, goal, delta, t, control_alg):
                     sum_temps += temp[i]    
             average_temp = sum_temps/6.0
             
-            
+            global current_DC
             print('Average temperature of the board is: ', average_temp)
             current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             print('Current duty cycle is set to: ', current_DC)
@@ -148,6 +148,7 @@ def bang_bang2(temp,goal,delta):
     '''
     brings temp up to desired value and then turns heaters on when it falls below a delta range
     '''
+    global current_DC
     error=temp-goal
     if error>=0:
         heater.ChangeDutyCycle(0)
@@ -189,7 +190,10 @@ def P2(temp,want, delta, Kp=2):
         Pt = get_error(temp,want,delta) * Kp
         return Pt
     PID_sum=P_control(Kp)
-    heater.ChangeDutyCycle(sigmoid(PID_sum))
+    current_DC = sigmoid(PID_sum)
+    heater.ChangeDutyCycle(current_DC)
+    return current_DC
+
 def fail_safe():
     ''' implement if needed
     '''
@@ -278,7 +282,7 @@ def sigmoid(PID_sum):
     
 try:
     print('trial started')
-    Qi_track(filename, 35, 2, 55500, bang_bang2)
+    Qi_track(filename, 35, 2, 55500, P2)
 except KeyboardInterrupt:
     print ('\n')
 finally:
