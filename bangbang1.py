@@ -73,7 +73,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     except:    
         pass
         
-    w = 2  #wait inbetween steps
+    w = .5  #wait inbetween steps
     current_DC = 0    
     for a in range(t*100000):#t*100000 insures that input time dictates time of test
         temp = [0] 
