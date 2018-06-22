@@ -77,7 +77,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     current_DC = 0    
     for a in range(t*100000):#t*100000 insures that input time dictates time of test
         temp = [0] 
-        current_time=start_time-timey.time()
+        current_time=abs(start_time-timey.time())
         temp[0] = int(current_time)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
@@ -300,7 +300,7 @@ def sigmoid(PID_sum):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 60, P2, cool_down=True)
+    Qi_track(filename, 35, 2, 300, bang_bang, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
