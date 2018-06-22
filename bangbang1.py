@@ -33,7 +33,7 @@ previous_error = 0
 
 # filename formatting
 time = datetime.now()
-time = time.strftime("%Y-%m-%d %H:%M")
+time = time.strftime("%Y-%m-%d - %H:%M") 
 filename = 'pi_stats' + time + '.csv'
 filename = filename.replace(' ', '')
 print('Filename for generated file will be:')
@@ -76,7 +76,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     w = 2  #wait inbetween steps
     current_DC = 0    
     for a in range(t*100000):#t*100000 insures that input time dictates time of test
-        temp = [0]
+        temp = [0] 
         current_time=start_time-timey.time()
         temp[0] = int(current_time)
 	
@@ -86,7 +86,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
 	
 #        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
 #        temp.append(cpu_temp)
-        temp.append(current_DC)
+        #temp.append(current_DC)
         
         
         #printing out values every two seconds
@@ -100,10 +100,6 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         
         #recording values into csv if file name provided        
         if recording:
-            
-            with open(filename, 'a', newline = '') as file:
-                dat = csv.writer(file)
-                dat.writerow(temp)
                 
             #Calculating the average temperature of the board
             sum_temps = 0.0
@@ -120,12 +116,18 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
                 current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             elif cool_down and stop_heat:
                 heater.ChangeDutyCycle(0)
-                current_DC=0
+                current_DC=0 
                 if current_time>=t+30:
                     raise KeyboardInterrupt('cool_down complete')
             else:
                 raise KeyboardInterrupt('heat test done')
             print('Current duty cycle is set to: ', current_DC)
+            
+            temp.append(current_DC)
+
+            with open(filename, 'a', newline = '') as file:
+                dat = csv.writer(file)
+                dat.writerow(temp)
             
             
             a+=w #keeps track of step
