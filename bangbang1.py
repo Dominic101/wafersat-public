@@ -77,7 +77,8 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     current_DC = 0    
     for a in range(t*100000):#t*100000 insures that input time dictates time of test
         temp = [0]
-        temp[0] = a
+        current_time=start_time-timey.time()
+        temp[0] = int(current_time)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
            if i !=2 and i != 3:
@@ -113,13 +114,14 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             global current_DC
             print('Average temperature of the board is: ', average_temp)
             stop_heat=False
-            if timey.time()-start_time>=t:
+            if current_time>=t:
                 stop_heat=True
             if not stop_heat:
                 current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
             elif cool_down and stop_heat:
                 heater.ChangeDutyCycle(0)
-                if timey.time()-start_time>=t+30:
+                current_DC=0
+                if current_time>=t+30:
                     raise KeyboardInterrupt('cool_down complete')
             else:
                 raise KeyboardInterrupt('heat test done')
