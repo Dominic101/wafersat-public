@@ -30,7 +30,6 @@ heater.start(0) #starts the heaters, duty cycle 0
 current_DC = 0.0
 previous_error = 0
 
-
 # filename formatting
 time = datetime.now()
 time = time.strftime("%Y-%m-%d - %H:%M") 
@@ -300,7 +299,7 @@ def sigmoid(PID_sum):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 300, bang_bang, cool_down=True)
+    Qi_track(filename, 35, 2, 300, control_alg, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
