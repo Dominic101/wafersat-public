@@ -19,7 +19,7 @@ import subprocess
 from datetime import datetime
 import current_RTD as rtd 
 import os
-from numpy import mean,math 
+from numpy import mean,math  
 
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
