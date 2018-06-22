@@ -76,9 +76,9 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     w = .5  #wait inbetween steps
     current_DC = 0    
     for a in range(t*100000):#t*100000 insures that input time dictates time of test
-        temp = [0] 
+        temp = [0]  
         current_time=abs(start_time-timey.time())
-        temp[0] = int(current_time)
+        temp[0] = round(current_time,2)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
            if i !=2 and i != 3:
