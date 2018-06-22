@@ -191,6 +191,7 @@ def P(temp, goal, delta):
 
     
 def P2(temp,want, delta, Kp=2):
+    global current_DC
     def get_error(temp,want,delta):
         if abs(want-temp)<delta:
             return 0
@@ -295,7 +296,7 @@ def sigmoid(PID_sum):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 120, P2, cool_down=True)
+    Qi_track(filename, 35, 2, 60, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
