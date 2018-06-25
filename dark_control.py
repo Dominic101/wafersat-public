@@ -211,7 +211,7 @@ def P(temp, goal, delta):
 def P2(temp,want, delta, Kp=2):
     global current_DC
     def get_error(temp,want,delta):
-        if abs(want-temp)<delta:
+        if abs(want-temp)<delta or temp-want>0:
             return 0
         else:
             return want-temp#check if it should be the other way around
