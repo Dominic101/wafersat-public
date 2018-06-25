@@ -81,7 +81,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         temp[0] = round(current_time,2)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
-           if i !=2:
+           if i !=2 and i!=3:
                temp.append(rtd.get_temp(i))
 	
 #        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
@@ -93,8 +93,8 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         if a%4 == 0:  
             print('t= ',temp[0])
               ##  #.format(*RTD_val)) #0-1023 value from MCP3008
-           # print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|{7:^7}'
-           # .format(*temp)) #temperature calculated from raw data.
+            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}'
+           .format(*temp)) #temperature calculated from raw data.
            # print("_"*72)
             #print("")     
         
@@ -103,9 +103,9 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
                 
             #Calculating the average temperature of the board
             sum_temps = 0.0
-            for i in range(1,8):
+            for i in range(1,7):
                     sum_temps += temp[i]    
-            average_temp = sum_temps/7.0
+            average_temp = sum_temps/6.0
             if a==0:
                 x_old=average_temp
             filtered_temp=davefilter(average_temp)
