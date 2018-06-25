@@ -63,6 +63,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     t: how many seconds to run this for
     """
     global x_old
+    global current_DC
     recording = False
     start_time=timey.time()
     
@@ -112,7 +113,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             filtered_temp=davefilter(average_temp)
             temp.append(filtered_temp)
             print('Filtered temp: ', filtered_temp)
-            global current_DC
+           # global current_DC
             print('Average temp: ', average_temp)
             stop_heat=False
             if current_time>=t:
@@ -208,11 +209,11 @@ def P(temp, goal, delta):
         return PD_output
 
     
-def P2(temp,want, delta, Kp=2):
+def P2(temp,want, delta, Kp=3.3):
     global current_DC
     def get_error(temp,want,delta):
        # if abs(want-temp)<delta or temp-want>0:
-       if want-temp>0:
+       if want-temp<0:
             return 0
        else:
             return want-temp#check if it should be the other way around
