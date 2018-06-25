@@ -20,6 +20,7 @@ from datetime import datetime
 import current_RTD as rtd 
 import os
 from numpy import mean,math  
+x_old=None
 
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
@@ -61,7 +62,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     delta: the margin
     t: how many seconds to run this for
     """
-    
+    global x_old
     recording = False
     start_time=timey.time()
     
@@ -81,7 +82,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
            if i !=2:
-           temp.append(rtd.get_temp(i))
+               temp.append(rtd.get_temp(i))
 	
 #        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
 #        temp.append(cpu_temp)
@@ -89,12 +90,13 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         
         
         #printing out values every two seconds
-        if a%4 == 0:        
-                #.format(*RTD_val)) #0-1023 value from MCP3008
-            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|{7:^7}'
-            .format(*temp)) #temperature calculated from raw data.
-            print("_"*72)
-            print("")     
+        if a%4 == 0:  
+            print('t= ',temp[0])
+              ##  #.format(*RTD_val)) #0-1023 value from MCP3008
+           # print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|{7:^7}'
+           # .format(*temp)) #temperature calculated from raw data.
+           # print("_"*72)
+            #print("")     
         
         #recording values into csv if file name provided        
         if recording:
@@ -104,14 +106,27 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             for i in range(1,8):
                     sum_temps += temp[i]    
             average_temp = sum_temps/7.0
-            
+            if a==0:
+                x_old=average_temp
+            filtered_temp=davefilter(average_temp)
+            temp.append(filtered_temp)
+            print('Filtered temp: ', filtered_temp)
             global current_DC
-            print('Average temperature of the board is: ', average_temp)
+            print('Average temp: ', average_temp)
             stop_heat=False
             if current_time>=t:
                 stop_heat=True
             if not stop_heat:
-                current_DC=control_alg(average_temp, goal, delta) #turns on/off heaters as necessary
+                if a<25:
+                    if abs(filtered_temp-average_temp)<.5:
+                        current_DC=control_alg(filtered_temp, goal, delta)
+                    else:
+                        current_DC=control_alg(average_temp, goal, delta)
+                else:
+                    if abs(filtered_temp-average_temp)<1.5:
+                        current_DC=control_alg(filtered_temp, goal, delta) #turns on/off heaters as necessary
+                    else:
+                        current_DC=control_alg(average_temp, goal, delta)
             elif cool_down and stop_heat:
                 heater.ChangeDutyCycle(0)
                 current_DC=0 
@@ -119,7 +134,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
                     raise KeyboardInterrupt('cool_down complete')
             else:
                 raise KeyboardInterrupt('heat test done')
-            print('Current duty cycle is set to: ', current_DC)
+            print('Current DC:', current_DC)
             
             temp.append(current_DC)
 
@@ -293,12 +308,17 @@ def sigmoid(PID_sum):
 #        heater.ChangeDutyCycle(PD_output)
 #        return PD_output
     
-    
+def davefilter(avg_temp, a=.15, delta_t=.5):
+    global x_old
+    x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
+    o=a**.5*x_new
+    x_old=x_new
+    return o
     
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 300, control_alg, cool_down=True)
+    Qi_track(filename, 35, 2, 300, P, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
