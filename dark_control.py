@@ -106,6 +106,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             for i in range(1,7):
                     sum_temps += temp[i]    
             average_temp = sum_temps/6.0
+            temp.append(average_temp)
             if a==0:
                 x_old=average_temp
             filtered_temp=davefilter(average_temp)
@@ -308,7 +309,7 @@ def sigmoid(PID_sum):
 #        heater.ChangeDutyCycle(PD_output)
 #        return PD_output
     
-def davefilter(avg_temp, a=.15, delta_t=.5):
+def davefilter(avg_temp, a=.3, delta_t=.5):
     global x_old
     x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
     o=a**.5*x_new
@@ -318,7 +319,7 @@ def davefilter(avg_temp, a=.15, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 300, P, cool_down=True)
+    Qi_track(filename, 35, 2, 300, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
