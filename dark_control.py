@@ -211,17 +211,22 @@ def P(temp, goal, delta):
 def P2(temp,want, delta, Kp=2):
     global current_DC
     def get_error(temp,want,delta):
-        if abs(want-temp)<delta or temp-want>0:
+       # if abs(want-temp)<delta or temp-want>0:
+       if want-temp>0:
             return 0
-        else:
+       else:
             return want-temp#check if it should be the other way around
 
     def P_control(Kp):
         Pt = get_error(temp,want,delta) * Kp
         return Pt
     PID_sum=P_control(Kp)
-    current_DC = sigmoid(PID_sum)
-    heater.ChangeDutyCycle(current_DC)
+    if PID_sum!=0:
+        current_DC = sigmoid(PID_sum)
+        heater.ChangeDutyCycle(current_DC)
+    else:
+        current_DC = 0
+        heater.ChangeDutyCycle(0)
     return current_DC
 
 
@@ -319,7 +324,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 35, 2, 300, P2, cool_down=True)
+    Qi_track(filename, 33, 2, 300, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
