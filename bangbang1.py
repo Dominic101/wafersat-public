@@ -29,8 +29,7 @@ heater = GPIO.PWM(25,20) #frequency is 20 (?)
 heater.start(0) #starts the heaters, duty cycle 0
 current_DC = 0.0
 previous_error = 0
-derivative_errors = [0,0,0,0]
-D_gain = 0.0
+
 
 # filename formatting
 time = datetime.now()
@@ -211,53 +210,7 @@ def P2(temp,want, delta, Kp=2):
     heater.ChangeDutyCycle(current_DC)
     return current_DC
 
-def update_derivatives(new_der) :
-    global derivative_errors
-    derivative_errors.pop(0)
-    derivative_errors.append(new_der)
-    
-def get_average_der() :
-    global derivative_errors
-    sum = 0.0
-    for x in derivative_errors:
-        sum += x
-    return sum/4.0
 
-
-def PD(temp, want, delta, Kp=2, Kd=2) :
-    ''' 
-    This is not really what we want but close. D should only execute every 2 seconds not every time PD is called.
-    '''
-    global current_DC
-    global D_gain
-    error = want - temp
-    
-    if error < 0:
-        d_error = (error-previous_error)/0.5
-        previous_error = error
-        update_derivatives(d_error)
-        current_DC = 0
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-    else:      
-        Pt = error * Kp
-        
-        d_error = (error-previous_error)/0.5
-        previous_error = error
-        update_derivatives(d_error)
-        
-        if get_average_der() < 0.2:
-            D_gain += 1.0
-        elif get_average_der > 1.0:
-            D_gain -= 0.0
-        
-        
-        
-        PID_sum = Pt+D_gain
-        current_DC = sigmoid(PID_sum)
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-    
 def fail_safe():
 ''' implement if needed
 '''
