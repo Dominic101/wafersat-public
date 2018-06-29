@@ -243,10 +243,7 @@ def update_derivatives(new_der):
 
 def get_average_der():
     global derivative_errors
-    sum = 0.0
-    for x in derivative_errors:
-        sum += x
-    return sum / 4.0
+    return sum(derivative_errors) / 4.0
 
 
 def PD(temp, want, Kp=2):
@@ -272,10 +269,10 @@ def PD(temp, want, Kp=2):
         d_error = (error - previous_error) / 0.5
         previous_error = error
         update_derivatives(d_error)
-        if a % 4 == 0:
-            if get_average_der() < 0.2:
+        if a % 2 == 0 and a!=0:
+            if get_average_der() < 0.15 and error >.2:
                 D_incr += 1.0
-            elif get_average_der > 1.0:
+            elif get_average_der() > .35:
                 D_incr -= 1.0
 
         PID_sum = Pt + D_incr
