@@ -86,8 +86,8 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         temp[0] = round(current_time,2)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
-           if i !=2 and i!=3:
-               temp.append(rtd.get_temp(i))
+           if i !=4 and i!=6:
+           	temp.append(rtd.get_temp(i))
 	
 #        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
 #        temp.append(cpu_temp)
@@ -150,7 +150,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             
             
             a+=w #keeps track of step
-            sleep(w) #sleeps beforen next iteration    
+            sleep(w) #sleeps before next iteration    
         
 
 def bang_bang(temp, goal, delta):
@@ -259,8 +259,8 @@ def PD(temp, want, Kp=2):
     if error < 0:
         d_error = (error - previous_error) / 0.5
         previous_error = error
-        update_derivatives(d_error)
-        current_DC = 0
+#        update_derivatives(d_error)
+        current_DC = 5
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else:
@@ -271,10 +271,13 @@ def PD(temp, want, Kp=2):
         update_derivatives(d_error)
         if a % 2 == 0 and a!=0:
             if get_average_der() < 0.15 and error >.2:
-                D_incr += 1.0
-            elif get_average_der() > .35:
-                D_incr -= 1.0
-
+                D_incr += 0.1
+            elif get_average_der() > .15:
+                D_incr -= 0.1
+	    # a crude temporary thing
+            elif get_average_der() > 0.25 and a > 60:
+                D_incr -= 0.5
+        print('D_incr: ', D_incr)
         PID_sum = Pt + D_incr
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
@@ -374,7 +377,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 33, 2, 300, P2, cool_down=True)
+    Qi_track(filename, 34, 2, 300, PD, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
