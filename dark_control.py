@@ -35,16 +35,14 @@ fixit = 0.0
 a = 0
 
 # filename formatting
-time = datetime.now()
-time = time.strftime("%Y-%m-%d - %H:%M") 
-filename = 'pi_stats' + time + '.csv'
-filename = filename.replace(' ', '')
-print('Filename for generated file will be:')
-print(filename)
+#time = datetime.now()
+#time = time.strftime("%Y-%m-%d - %H:%M") 
+#filename =  time + '.csv'
+#filename = filename.replace(' ', '')
 
 
     
-def Qi_track(filename, goal, delta, t, control_alg,cool_down):
+def Qi_track(goal, delta, t, control_alg, cool_down):
     """
     Function measures values from sensor and MCP3008 and writes temperature 
     values to a csv file at a rate of 1/w samples a second. It prints out and
@@ -68,7 +66,11 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
     global x_old
     global current_DC
     recording = False
-    start_time=timey.time()
+    start_time = timey.time()
+    timeforfile = datetime.now()
+    timeforfile = time.strftime("%Y-%m-%d - %H:%M") 
+    filename =  str(control_alg) + start_time + '.csv'
+    filename = filename.replace(' ', '')
     
     try: #tells you if data is recording or not
         if '.csv' in filename:
@@ -413,7 +415,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 34, 2, 300, PI, cool_down=True)
+    Qi_track(34, 2, 300, PI, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
