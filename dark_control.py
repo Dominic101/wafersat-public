@@ -290,7 +290,7 @@ def PD(temp, want, Kp=2):
         return current_DC
 
 
-def PI(temp,want, Ki=.1, Kp=2):
+def PI(temp,want, Ki=.01, Kp=2):
     global current_DC 
     global integral
     global a
@@ -303,10 +303,11 @@ def PI(temp,want, Ki=.1, Kp=2):
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else :
-        if integral>0:
-            PID_sum=error*Kp+integral*Ki
-        else:
-             PID_sum=error*Kp
+        PID_sum=error*Kp+integral*Ki
+#        if integral>0:
+#            PID_sum=error*Kp+integral*Ki
+#        else:
+#             PID_sum=error*Kp
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
