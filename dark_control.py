@@ -254,7 +254,7 @@ def PD(temp, want, Kp=2):
     global D_incr
     global a
     global previous_error
-    error = want - temp
+    error = want - temp 
 
     if error < 0:
         d_error = (error - previous_error) / 0.5
