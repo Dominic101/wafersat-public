@@ -31,7 +31,7 @@ heater.start(0) #starts the heaters, duty cycle 0
 current_DC = 0.0
 previous_error = 0
 derivative_errors = [0,0,0,0]
-D_incr = 0.0
+fixit = 0.0
 a = 0
 
 # filename formatting
@@ -252,7 +252,7 @@ def PD(temp, want, Kp=2):
     This is not really what we want but close. D should only execute every 2 seconds not every time PD is called.
     '''
     global current_DC
-    global D_incr
+    global fixit
     global a
     global previous_error
     error = want - temp 
@@ -272,17 +272,19 @@ def PD(temp, want, Kp=2):
         update_derivatives(d_error)
         if a % 2 == 0 and a!=0:
             if get_average_der() < 0.06 and error >.2:
-                D_incr += 0.1
+                fixit += 0.1
             
             elif get_average_der() > 0.2 and a>60:
-                D_incr -= 0.5
+                if fixit>=0:
+                    fixit -= 0.5
             elif get_average_der() > .1:
-                D_incr -= 0.1
-        print('D_incr: ', D_incr)
+                if fixit>=0
+                fixit -= 0.1
+        print('fixit: ', fixit)
         if error>.2:
-            PID_sum = Pt + D_incr
+            PID_sum = Pt + fixit
         else:
-            PID_sum=Pt+D_incr*error
+            PID_sum=Pt+fixit*error
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
@@ -301,7 +303,10 @@ def PI(temp,want, Ki=.1, Kp=2):
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else :
-        PID_sum=error*Kp+integral*Ki
+        if integral>0:
+            PID_sum=error*Kp+integral*Ki
+        else:
+             PID_sum=error*Kp
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
@@ -393,7 +398,7 @@ def sigmoid(PID_sum):
 #        heater.ChangeDutyCycle(PD_output)
 #        return PD_output
     
-def davefilter(avg_temp, a=.15, delta_t=.5):
+def davefilter(avg_temp, a=.3, delta_t=.5):
     global x_old
     x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
     o=a**.5*x_new
