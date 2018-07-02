@@ -21,7 +21,7 @@ import current_RTD as rtd
 import os
 from numpy import mean,math  
 x_old=None
-
+global integral=0
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
 GPIO.setwarnings(False)
@@ -283,6 +283,33 @@ def PD(temp, want, Kp=2):
         heater.ChangeDutyCycle(current_DC)
         return current_DC
 
+
+def PI(temp,want, Ki=.5, Kp=2):
+    global current_DC 
+    def get_error(temp,want):
+       # if abs(want-temp)<delta or temp-want>0:
+       if want-temp<0:
+            return 0
+       else:
+            return want-temp
+
+    def P_control(Kp):
+        Pt = get_error(temp,want) * Kp
+        return Pt
+    def I_control(Ki, integral):
+        global integral
+        integral+=get_error(temp,want)
+        return Ki*integral
+    PID_sum=P_control(Kp)+I_control(Ki, integral)
+    if PID_sum!=0:
+        current_DC = sigmoid(PID_sum)
+        heater.ChangeDutyCycle(current_DC)
+    else:
+        current_DC = 0
+        heater.ChangeDutyCycle(0)
+    return current_DC
+
+
 def fail_safe():
     ''' implement if needed
     '''
@@ -298,7 +325,9 @@ def sigmoid(PID_sum):
     sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
     return sigmoid*100
 
+   
     
+
 #def PID(temp,want, delta, Kp=2,Ki=.2,Kd=1.3,It=0,previous_error=0):
 #    def get_error(temp,want,delta):
 #        temp_avg = mean(temp[1:])
