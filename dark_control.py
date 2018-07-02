@@ -34,13 +34,6 @@ derivative_errors = [0,0,0,0]
 fixit = 0.0
 a = 0
 
-# filename formatting
-#time = datetime.now()
-#time = time.strftime("%Y-%m-%d - %H:%M") 
-#filename =  time + '.csv'
-#filename = filename.replace(' ', '')
-
-
     
 def Qi_track(goal, delta, t, control_alg, cool_down):
     """
@@ -68,8 +61,8 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
     recording = False
     start_time = timey.time()
     timeforfile = datetime.now()
-    timeforfile = time.strftime("%Y-%m-%d - %H:%M") 
-    filename =  str(control_alg) + start_time + '.csv'
+    timeforfile = timeforfile.strftime("%Y-%m-%d - %H:%M") 
+    filename =  str(control_alg) + timeforfile + '.csv'
     filename = filename.replace(' ', '')
     
     try: #tells you if data is recording or not
