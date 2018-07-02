@@ -258,7 +258,7 @@ def PD(temp, want, Kp=2):
         d_error = (error - previous_error) / 0.5
         previous_error = error
 #        update_derivatives(d_error)
-        current_DC = 5
+        current_DC = 0.0
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else:
@@ -296,7 +296,7 @@ def PI(temp,want, Ki=.1, Kp=2):
         integral += error*0.5
     print(integral)
     if error < 0:
-        current_DC = 5
+        current_DC = 0.0
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else :
