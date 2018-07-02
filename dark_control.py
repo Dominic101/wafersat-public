@@ -270,13 +270,13 @@ def PD(temp, want, Kp=2):
         previous_error = error
         update_derivatives(d_error)
         if a % 2 == 0 and a!=0:
-            if get_average_der() < 0.15 and error >.2:
+            if get_average_der() < 0.06 and error >.2:
                 D_incr += 0.1
-            elif get_average_der() > .15:
-                D_incr -= 0.1
-	    # a crude temporary thing
-            elif get_average_der() > 0.25 and a > 60:
+            
+            elif get_average_der() > 0.2 and a>60:
                 D_incr -= 0.5
+            elif get_average_der() > .1:
+                D_incr -= 0.1
         print('D_incr: ', D_incr)
         PID_sum = Pt + D_incr
         current_DC = sigmoid(PID_sum)
@@ -367,7 +367,7 @@ def sigmoid(PID_sum):
 #        heater.ChangeDutyCycle(PD_output)
 #        return PD_output
     
-def davefilter(avg_temp, a=.3, delta_t=.5):
+def davefilter(avg_temp, a=.15, delta_t=.5):
     global x_old
     x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
     o=a**.5*x_new
