@@ -21,7 +21,7 @@ import current_RTD as rtd
 import os
 from numpy import mean,math  
 x_old=None
-integral=0
+
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
 GPIO.setwarnings(False)
@@ -86,8 +86,8 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
         temp[0] = round(current_time,2)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
-           if i !=4 and i!=6:
-           	temp.append(rtd.get_temp(i))
+           if i !=2 and i!=318.245.0.9618.245.0.96:
+               temp.append(rtd.get_temp(i))
 	
 #        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
 #        temp.append(cpu_temp)
@@ -150,7 +150,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             
             
             a+=w #keeps track of step
-            sleep(w) #sleeps before next iteration    
+            sleep(w) #sleeps beforen next iteration    
         
 
 def bang_bang(temp, goal, delta):
@@ -254,13 +254,13 @@ def PD(temp, want, Kp=2):
     global D_incr
     global a
     global previous_error
-    error = want - temp 
+    error = want - temp
 
     if error < 0:
         d_error = (error - previous_error) / 0.5
         previous_error = error
-#        update_derivatives(d_error)
-        current_DC = 5
+        update_derivatives(d_error)
+        current_DC = 0
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else:
@@ -270,38 +270,15 @@ def PD(temp, want, Kp=2):
         previous_error = error
         update_derivatives(d_error)
         if a % 2 == 0 and a!=0:
-            if get_average_der() < 0.06 and error >.2:
-                D_incr += 0.1
-            
-            elif get_average_der() > 0.2 and a>60:
-                D_incr -= 0.5
-            elif get_average_der() > .1:
-                D_incr -= 0.1
-        print('D_incr: ', D_incr)
+            if get_average_der() < 0.15 and error >.2:
+                D_incr += 1.0
+            elif get_average_der() > .35:
+                D_incr -= 1.0
+
         PID_sum = Pt + D_incr
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
-
-
-def PI(temp,want, Ki=.1, Kp=2):
-    global current_DC 
-    global integral
-    global a
-    error = want - temp
-    if a > 60:
-        integral += error
-    print(integral)
-    if error < 0:
-        current_DC = 5
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-    else :
-        PID_sum=error*Kp+integral*Ki
-        current_DC = sigmoid(PID_sum)
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-
 
 def fail_safe():
     ''' implement if needed
@@ -318,9 +295,7 @@ def sigmoid(PID_sum):
     sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
     return sigmoid*100
 
-   
     
-
 #def PID(temp,want, delta, Kp=2,Ki=.2,Kd=1.3,It=0,previous_error=0):
 #    def get_error(temp,want,delta):
 #        temp_avg = mean(temp[1:])
@@ -389,7 +364,7 @@ def sigmoid(PID_sum):
 #        heater.ChangeDutyCycle(PD_output)
 #        return PD_output
     
-def davefilter(avg_temp, a=.15, delta_t=.5):
+def davefilter(avg_temp, a=.3, delta_t=.5):
     global x_old
     x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
     o=a**.5*x_new
@@ -399,7 +374,7 @@ def davefilter(avg_temp, a=.15, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 34, 2, 300, PI, cool_down=True)
+    Qi_track(filename, 33, 2, 300, P2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
