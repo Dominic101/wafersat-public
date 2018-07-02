@@ -408,7 +408,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(34, 2, 300, PI, cool_down=True)
+    Qi_track(34, 2, 300, PD, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
