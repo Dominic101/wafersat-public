@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 """
 Created on Mon Jun 18 10:38:42 2018
 
@@ -125,14 +125,14 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             if not stop_heat:
                 if a<25:
                     if abs(filtered_temp-average_temp)<.5:
-                        current_DC=control_alg(filtered_temp, goal, delta)
+                        current_DC=control_alg(filtered_temp, goal)
                     else:
-                        current_DC=control_alg(average_temp, goal, delta)
+                        current_DC=control_alg(average_temp, goal)
                 else:
                     if abs(filtered_temp-average_temp)<1.5:
-                        current_DC=control_alg(filtered_temp, goal, delta) #turns on/off heaters as necessary
+                        current_DC=control_alg(filtered_temp, goal) #turns on/off heaters as necessary
                     else:
-                        current_DC=control_alg(average_temp, goal, delta)
+                        current_DC=control_alg(average_temp, goal)
             elif cool_down and stop_heat:
                 heater.ChangeDutyCycle(0)
                 current_DC=0 
@@ -153,7 +153,7 @@ def Qi_track(filename, goal, delta, t, control_alg,cool_down):
             sleep(w) #sleeps before next iteration    
         
 
-def bang_bang(temp, goal, delta):
+def bang_bang(temp, goal):
     """
     Bang-Bang Controller: Turns heaters off or on 100% duty cycle if the average temp of the board is below the margin.
     
@@ -163,6 +163,7 @@ def bang_bang(temp, goal, delta):
     
     """
     error = temp - goal
+    delta = 2
     if error >= 0 :
         heater.ChangeDutyCycle(0)
         current_DC = 0.0
@@ -178,12 +179,13 @@ def bang_bang(temp, goal, delta):
        # setup_heaters(ser, 0, 50) #turns on heaters, 100% duty cycle
     return current_DC
 
-def bang_bang2(temp,goal,delta):
+def bang_bang2(temp,goal):
     '''
     brings temp up to desired value and then turns heaters on when it falls below a delta range
     '''
     global current_DC
     error=temp-goal
+    delta = 2
     if error>=0:
         heater.ChangeDutyCycle(0)
         current_DC = 0.0
@@ -192,7 +194,7 @@ def bang_bang2(temp,goal,delta):
         current_DC = 100
     return current_DC
 
-def P(temp, goal, delta):
+def P(temp, goal):
     global previous_error
     if goal-temp <= 0:
         heater.ChangeDutyCycle(0.0)
@@ -213,7 +215,7 @@ def P(temp, goal, delta):
         return PD_output
 
     
-def P2(temp,want, delta, Kp=3.3):
+def P2(temp,want, Kp=3.3):
     global current_DC 
     def get_error(temp,want,delta):
        # if abs(want-temp)<delta or temp-want>0:
@@ -278,11 +280,11 @@ def PD(temp, want, Kp=2):
                 if fixit>=0:
                     fixit -= 0.5
             elif get_average_der() > .1:
-                if fixit>=0
-                fixit -= 0.1
+                if fixit>=0:
+                    fixit -= 0.1
         print('fixit: ', fixit)
         if error>.2:
-            PID_sum = Pt + fixit
+            PID_sum = Pt + fixit*error
         else:
             PID_sum=Pt+fixit*error
         current_DC = sigmoid(PID_sum)
@@ -290,24 +292,25 @@ def PD(temp, want, Kp=2):
         return current_DC
 
 
-def PI(temp,want, Ki=.01, Kp=2):
+def PI(temp,want, Ki=.1, Kp=2):
     global current_DC 
     global integral
     global a
     error = want - temp
     if a > 60:
-        integral += error
+        integral += error*0.5
     print(integral)
     if error < 0:
         current_DC = 5
         heater.ChangeDutyCycle(current_DC)
         return current_DC
     else :
-        PID_sum=error*Kp+integral*Ki
-#        if integral>0:
-#            PID_sum=error*Kp+integral*Ki
-#        else:
-#             PID_sum=error*Kp
+#        PID_sum=error*Kp+integral*Ki
+        if integral>0:
+            PID_sum=(error*Kp)+(integral*Ki)
+        else:
+             PID_sum=error*Kp
+        print(PID_sum)
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
@@ -360,6 +363,7 @@ def sigmoid(PID_sum):
 #def fail_safe():
 #    ''' implement if needed
 #    '''
+
 #    heater.ChangeDutyCycle(0)
 #    
 #def sigmoid(PID_sum):
@@ -409,7 +413,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 34, 2, 300, PD, cool_down=True)
+    Qi_track(filename, 34, 2, 300, PI, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
