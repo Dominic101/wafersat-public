@@ -238,8 +238,7 @@ def P2(temp,want, delta, Kp=3.3):
 def update_derivatives(new_der):
     global derivative_errors
     derivative_errors.pop(0)
-    derivative_errors.append(-new_der)
-    print(derivative_errors,'der errors')
+    derivative_errors.append(new_der)
 
 
 def get_average_der():
@@ -279,32 +278,41 @@ def PD(temp, want, Kp=2):
             elif get_average_der() > .1:
                 D_incr -= 0.1
         print('D_incr: ', D_incr)
-        if error>.2:
-            PID_sum = Pt + D_incr
-        else:
-            PID_sum=Pt+D_incr*error
+        PID_sum = Pt + D_incr
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
 
 
-def PI(temp,want, Ki=.1, Kp=2):
+def PI(temp,want, Ki=.5, Kp=2):
     global current_DC 
     global integral
     global a
-    error = want - temp
-    if a > 60:
-        integral += error
-    print(integral)
-    if error < 0:
-        current_DC = 5
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
+    def get_error(temp,want):
+       # if abs(want-temp)<delta or temp-want>0:
+       if want-temp<0:
+            return 0
+       else:
+            return want-temp
+
+    def P_control(Kp):
+        Pt = get_error(temp,want) * Kp
+        return Pt
+    
+    if a < 60:
+        return 0
     else :
-        PID_sum=error*Kp+integral*Ki
+        integral+=get_error(temp,want)
+        rKi*integral
+    PID_sum=P_control(Kp)+I_control(Ki, integral)
+    print(integral)
+    if PID_sum!=0:
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
-        return current_DC
+    else:
+        current_DC = 0
+        heater.ChangeDutyCycle(0)
+    return current_DC
 
 
 def fail_safe():
@@ -403,7 +411,7 @@ def davefilter(avg_temp, a=.15, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(filename, 34, 2, 300, PD, cool_down=True)
+    Qi_track(filename, 34, 2, 300, PI, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
