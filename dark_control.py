@@ -287,14 +287,14 @@ def PD(temp, want, Kp=2):
         return current_DC
 
 
-def PI(temp,want, Ki=.1, Kp=2):
+def PI(temp,want, Ki=.5, Kp=2):
     global current_DC 
     global integral
     global a
     error = want - temp
     if a > 60:
         integral += error*0.5
-    print(integral)
+    print('integral =', integral)
     if error < 0:
         current_DC = 0.0
         heater.ChangeDutyCycle(current_DC)
@@ -305,7 +305,7 @@ def PI(temp,want, Ki=.1, Kp=2):
             PID_sum=(error*Kp)+(integral*Ki)
         else:
              PID_sum=error*Kp
-        print(PID_sum)
+        print('PIDSum = ',PID_sum)
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
         return current_DC
@@ -408,7 +408,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(34, 2, 300, PD, cool_down=True)
+    Qi_track(34, 2, 300, PI, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
