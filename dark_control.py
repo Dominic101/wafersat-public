@@ -62,7 +62,7 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
     start_time = timey.time()
     timeforfile = datetime.now()
     timeforfile = timeforfile.strftime("%Y-%m-%d - %H:%M") 
-    filename =  str(control_alg) + timeforfile + '.csv'
+    filename =  str(control_alg.__name__) + timeforfile + '.csv'
     filename = filename.replace(' ', '')
     
     try: #tells you if data is recording or not
