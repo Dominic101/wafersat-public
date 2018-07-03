@@ -311,6 +311,29 @@ def PI(temp,want, Ki=.1, Kp=2):
         return current_DC
 
 
+def PID(temp,want, Ki=.1, Kp=2, Kd=.05):
+    global current_DC 
+    global integral
+    global a
+    global previous_error
+    error = want - temp
+    if a >= 50:
+        integral += error*0.5
+    print('integral =', integral)
+    d_error = (error - previous_error) / 0.5
+    previous_error = error
+    update_derivatives(d_error)
+    if a>=2:
+        av_dev=get_average_der()
+    else:
+        av_dev=0
+    PID_sum=(error*Kp)+(integral*Ki)+av_dev*Kd
+    print('PIDSum = ',PID_sum)
+    current_DC = sigmoid(PID_sum)
+    heater.ChangeDutyCycle(current_DC)
+    return current_DC
+
+
 def fail_safe():
     ''' implement if needed
     '''
