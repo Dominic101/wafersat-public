@@ -287,19 +287,19 @@ def PD(temp, want, Kp=2):
         return current_DC
 
 
-def PI(temp,want, Ki=.5, Kp=2):
+def PI(temp,want, Ki=.1, Kp=2):
     global current_DC 
     global integral
     global a
     error = want - temp
-    if a > 60:
+    if a >= 50:
         integral += error*0.5
     print('integral =', integral)
-    if error < 0:
+    if 3 < 0:
         current_DC = 0.0
         heater.ChangeDutyCycle(current_DC)
         return current_DC
-    else :
+    else : 
 #        PID_sum=error*Kp+integral*Ki
         if integral>0:
             PID_sum=(error*Kp)+(integral*Ki)
@@ -412,6 +412,5 @@ try:
 except KeyboardInterrupt:
     print ('\n')
 finally:
-    GPIO.cleanup()
     print('cleanup complete have a nice day')
  
