@@ -81,11 +81,11 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
         temp[0] = round(current_time,2)
 	
         for i in range(0,8): #recording new temperature values of the RTDs 
-            if i!=2:         
+            if i!=2 and i!=4:         
                 temp.append(rtd.get_temp(i))
 	
-#        cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
-#        temp.append(cpu_temp)
+        #cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
+        #temp.append(cpu_temp)
         #temp.append(current_DC)
         
         
@@ -93,7 +93,7 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
         if a%4 == 0:  
             print('t= ',temp[0])
               ##  #.format(*RTD_val)) #0-1023 value from MCP3008
-            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}|{7:^7}'
+            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}'
            .format(*temp)) #temperature calculated from raw data.
 
         #recording values into csv if file name provided        
@@ -101,9 +101,9 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
                 
             #Calculating the average temperature of the board
             sum_temps = 0.0
-            for i in range(1,8):
+            for i in range(1,7):
                     sum_temps += temp[i]    
-            average_temp = sum_temps/7.0
+            average_temp = sum_temps/6.0
             temp.append(average_temp)
             if a==0:
                 x_old=average_temp
@@ -112,6 +112,9 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
             print('Filtered temp: ', filtered_temp)
            # global current_DC
             print('Average temp: ', average_temp)
+            plate_temp = rtd.get_temp(4)
+            print('Cold plate temp: ', plate_temp)
+            temp.append(plate_temp)
             stop_heat=False
             if current_time>=t:
                 stop_heat=True
@@ -235,7 +238,7 @@ def update_derivatives(new_der):
     global derivative_errors
     derivative_errors.pop(0)
     derivative_errors.append(-new_der)
-    print(derivative_errors,'der errors')
+    #print(derivative_errors,'der errors')
 
 
 def get_average_der():
