@@ -351,7 +351,10 @@ def sigmoid(PID_sum):
     sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
     return sigmoid*100
 
-   
+def cooling(temp, goal) :
+    current_DC = 0.0
+    heater.ChangeDutyCycle(current_DC)
+    return current_DC
     
 
 #def PID(temp,want, delta, Kp=2,Ki=.2,Kd=1.3,It=0,previous_error=0):
@@ -433,7 +436,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(20, 2, 600, PID, cool_down=True)
+    Qi_track(20, 2, 360, cooling, cool_down=False)
 except KeyboardInterrupt:
     print ('\n')
 finally:
