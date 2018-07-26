@@ -6,6 +6,7 @@ Created on Mon Jun 18 10:38:42 2018
 
 Bang-Bang Controller 
 Simple thermal controller
+PID Controller
 
 Records the temperature of the 8 RTD sensors. Based on the average temperature of 
 sensors, the algorithm turns the heaters on or off (100% duty cycle)
@@ -436,7 +437,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(34, 2,3600, PID, cool_down=False)
+    Qi_track(34, 2, 3600, PID, cool_down=False)
 except KeyboardInterrupt:
     print ('\n')
 finally:
