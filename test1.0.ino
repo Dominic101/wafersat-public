@@ -1,5 +1,6 @@
 // GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
 // GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
+
 #include <Mcp3208.h>
 #include <sensorbar.h>
 #include <SPI.h>
@@ -22,7 +23,7 @@ File dataFile; // for writing to a file, not implemented yet
 #define ADC_VREF    3300     // 3.3V Vref
 #define ADC_CLK     1000000  // SPI clock 1.0MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
-
+const int CS_PIN = 10;
 
 /* 
  * Takes unfiltered average temperature and applies a low-pass filter.
@@ -133,6 +134,14 @@ void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0)
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  Serial.println("Initializing Card");
+  pinMode(CS_PIN, OUTPUT);
+  if(!SD.begin(CS_PIN)) {
+    Serial.println("Card Failure");
+    return;
+  }
+  Serial.println("Card Ready");
+  
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
