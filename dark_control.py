@@ -17,7 +17,7 @@ import RPi.GPIO as GPIO
 import csv
 import subprocess
 from datetime import datetime
-import current_RTD as rtd 
+import current_RTD_quar as rtd
 import os
 from numpy import mean,math  
 x_old=None
@@ -436,7 +436,7 @@ def davefilter(avg_temp, a=.3, delta_t=.5):
 try:
     print('trial started')
     #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(40, 2,3600, cooling, cool_down=False)
+    Qi_track(34, 2,3600, PID, cool_down=False)
 except KeyboardInterrupt:
     print ('\n')
 finally:
