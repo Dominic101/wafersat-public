@@ -37,11 +37,11 @@ def TFD(data):
     Improved version of TFD with more accurate curve fitting and higher order interpolations
     (see Documentation for details, MATLAB files included)
     """
-    a = -1.207385958726655*10**(-10)
-    b = 3.557978291643751*10**(-7) 
-    c = -3.255399578150485*10**(-4)
-    d = 0.353182001881281
-    e = -257.5761373782475
+    a = 2.725076799546500*10**(-12)
+    b = -1.231253679636238*10**(-8)
+    c = 3.046224786805958*10**(-5)
+    d = 0.221027985508455
+    e = -241.9045208388455
 
     if data != 1:
         V = data * 3.3
