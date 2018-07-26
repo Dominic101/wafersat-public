@@ -46,7 +46,7 @@ def TFD(data):
     if data != 1:
         V = data * 3.3
         R = (2700 * V) / (3.3 - V)  # Based on voltage divider circuit with 2.7 k resistor
-        # in series with RTD powered on 3.3 V,
+        # in series with RTD powered on 3.3 V
 
     else:  # in case of dividing by 0
         R = 100000  # arbitrary value for extremely high R (most likely
