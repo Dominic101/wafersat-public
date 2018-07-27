@@ -65,9 +65,11 @@ For converting single data points into temperature readings.
 Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
 */
 float TFD(float data) {
-    float a = 0.0000132748342;
-    float b = 0.2269469276839;
-    float c = -241.1649627694734;
+    float a = 2.725076799546500*pow(10.0,-12.0);
+    float b = -1.231253679636238*pow(10.0,-8.0);
+    float c = 3.046224786805958*pow(10.0,-5.0);
+    float d = 0.221027985508455;
+    float e = -241.9045208388455;
     float V;
     float R;
 
@@ -81,7 +83,7 @@ float TFD(float data) {
         R = 100000;  //arbitrary value for extremely high R (most likely
         //due to error)
   }       
-    float T = a*pow(R,2)+b*R+c;
+    float T = a*pow(R,4.0) + b*pow(R,3.0) + c*pow(R,2.0) + d*R + e;
     return round(T*100)/100.0;
 }
 
@@ -162,7 +164,7 @@ void setup() {
   dataFile = SD.open(filename, FILE_WRITE);
   dataFile.close();
   
-  Serial.println('Setup complete');
+  Serial.println("Setup complete");
 }
 
 void loop() {
