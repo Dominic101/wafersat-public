@@ -1,11 +1,14 @@
 // GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
 // GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
+// GET Time LIBRARY: https://github.com/PaulStoffregen/Time
+// Time Library Documentation: https://www.pjrc.com/teensy/td_libs_Time.html  and http://playground.arduino.cc/Code/Time
 
 #include <Mcp3208.h>
 #include <sensorbar.h>
 #include <SPI.h>
 #include <SD.h>
 #include <Math.h>
+#include <Time.h>
 
 int RTD_list = 8; // This is not really a list anymore. Loop through int 0-7 to access the channel from adc.
 int goal = 20; //goal temperature, can be an int or change to float 
@@ -136,13 +139,13 @@ void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0)
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  Serial.println("Initializing Card");
+  Serial.println("Initializing Card...");
   pinMode(CS_PIN, OUTPUT);
   if(!SD.begin(CS_PIN)) {
-    Serial.println("Card Failure");
+    Serial.println("Card Failure.");
     return;
   }
-  Serial.println("Card Ready");
+  Serial.println("Card Detected!");
   
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -164,7 +167,7 @@ void setup() {
   dataFile = SD.open(filename, FILE_WRITE);
   dataFile.close();
   
-  Serial.println("Setup complete");
+  Serial.println("Setup complete.");
 }
 
 void loop() {
@@ -214,7 +217,8 @@ void loop() {
   temp[11] = current_DC;
   
   //Here we should save temp to file somehow
-
+  //a separate void function to write to file, and call it here
+  
   a += delta_t; //we're still doing this I guess
   delay(delta_t*1000); //sleep time
 }
