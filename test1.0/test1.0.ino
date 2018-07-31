@@ -1,7 +1,5 @@
 // GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
 // GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
-// GET Time LIBRARY: https://github.com/PaulStoffregen/Time
-// Time Library Documentation: https://www.pjrc.com/teensy/td_libs_Time.html  and http://playground.arduino.cc/Code/Time
 
 #include <Mcp3208.h>
 #include <sensorbar.h>
@@ -18,6 +16,7 @@ float previous_error = 0; // for the derivative of the error
 float a,integral,current_DC; //these need to be global scope so i'm declaring them here
 CircularBuffer derivative_errors(4); //this buffer will hold four derivative error values
 File dataFile; // for writing to a file, not implemented yet
+String filename; 
 
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
@@ -27,6 +26,12 @@ File dataFile; // for writing to a file, not implemented yet
 #define ADC_CLK     1000000  // SPI clock 1.0MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
 const int CS_PIN = 10;
+
+
+/*
+ * Setting up heater.
+ */
+#define HEATER_PIN  12
 
 /* 
  * Takes unfiltered average temperature and applies a low-pass filter.
@@ -46,7 +51,7 @@ float davefilter(float avg_temp, float a = 0.3) {
 float sigmoid(float PID_sum) {
   float funct_shift = PID_sum-4.0;
   float sigmoid = exp(funct_shift)/(exp(funct_shift)+1);
-  return sigmoid*100.0;
+  return sigmoid*255.0;
 }
 
 /* 
@@ -132,7 +137,21 @@ void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0)
   }
   float PID_sum = (error*Kp)+(integral*Ki)+(av_dev*Kd);
   current_DC = sigmoid(PID_sum);
-  //heater.ChangeDutyCycle(current_DC); I DON'T KNOW HOW TO DO THIS YET!! 
+  analogWrite(HEATER_PIN, current_DC);
+}
+
+void saveData(String data){
+  if(SD.exists(filename)){ // check the card is still there
+  // now append new data file
+    dataFile = SD.open(filename, FILE_WRITE);
+    if (dataFile){
+      dataFile.println(data);
+      dataFile.close(); // close the file
+    }
+  }
+  else{
+  Serial.println("Error writing to file !");
+  }
 }
 
 
@@ -163,16 +182,20 @@ void setup() {
   SPI.beginTransaction(settings);
 
   //Here I was testing opening a new file
-  String filename = "Test0001.csv";
+  filename = "Test0001.csv";
   dataFile = SD.open(filename, FILE_WRITE);
   dataFile.close();
-  
+
+
+  // heater
+  pinMode(HEATER_PIN, OUTPUT);
+ 
   Serial.println("Setup complete.");
 }
 
 void loop() {
-  float temp[12]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
-  temp[0] = millis()/1000.0; //time in seconds..?
+  String temp; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+  temp = millis()/1000.0; //time in seconds..?
 
   // This should read the 8 temperatures and record them.
   for(int i = 0; i<RTD_list; i++) {
@@ -215,9 +238,13 @@ void loop() {
     }
   }
   temp[11] = current_DC;
-  
-  //Here we should save temp to file somehow
-  //a separate void function to write to file, and call it here
+
+  //building and saving the data string from temp
+  String build;
+  for(int i = 0; i < sizeof(temp); i++) {
+    build += String(temp[i]) + ",";
+  }
+  saveData(build);
   
   a += delta_t; //we're still doing this I guess
   delay(delta_t*1000); //sleep time
