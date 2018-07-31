@@ -18,6 +18,8 @@ CircularBuffer derivative_errors(4); //this buffer will hold four derivative err
 File dataFile; // for writing to a file, not implemented yet
 String filename = "";
 bool csvnamed = false; 
+float starttime;
+String msg = "";
 
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
@@ -72,7 +74,11 @@ void update_derivatives(float new_der) {
 /*
 For converting single data points into temperature readings.
 Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
+
+George: revised readings according to manufacture datasheet, 
+quartic fit through temp vs. resistance data points over interval [-200, 100] deg C
 */
+
 float TFD(float data) {
     float a = 2.725076799546500*pow(10.0,-12.0);
     float b = -1.231253679636238*pow(10.0,-8.0);
@@ -141,6 +147,7 @@ void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0)
   analogWrite(HEATER_PIN, current_DC);
 }
 
+// helper function to append entire row of data (temp) to csv
 void saveData(String data){
   if(SD.exists(filename)){ // check the card is still there
   // now append new data file
@@ -190,28 +197,32 @@ void setup() {
 }
 
 void loop() {
-  if (csvnamed == false) {
+  if (csvnamed == false) { // this runs only when file is unnamed
     if (Serial.available() > 0) {
-      filename = Serial.readString();
+      filename = Serial.readString(); // takes in user-defined filename, make sure to include .csv at the end
+      dataFile = SD.open(filename, FILE_WRITE);
+      dataFile.close();
       Serial.print("The file is named to: "); Serial.println(filename);
       csvnamed = true;
+      starttime = millis()/1000.0;
     }
   } else {
-    String temp; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
-    temp = millis()/1000.0; //time in seconds..?
+    float temp[12]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+    temp[0] = millis()/1000.0 - starttime; //time in seconds..?
   
     // This should read the 8 temperatures and record them.
-    for(int i = 0; i<RTD_list; i++) {
+    for(int i = 1; i<=RTD_list; i++) {
       temp[i] = TFD(adc.read(i));
     }
   
     // Calculate the average temperature of the board
     float sum = 0;
-    for(int i = 1; i < sizeof(temp); i++) {
+    for(int i = 1; i <= RTD_list; i++) {
       sum += temp[i];
     }
     float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
     temp[9] = avg_temp;
+    msg = "Average temp: " + String(avg_temp); Serial.println(msg);
     
     //this runs once for the filter
     if(a==0) {
@@ -221,7 +232,8 @@ void loop() {
    
     float filtered_temp = davefilter(avg_temp); //apply filter
     temp[10] = filtered_temp;
-  
+    msg = "Filtered temp: " + String(filtered_temp); Serial.println(msg);
+    
     // copying old python PID, we can change how this works
     // also note that PID no longer returns duty cycle
     if(a<25) {
@@ -241,12 +253,14 @@ void loop() {
       }
     }
     temp[11] = current_DC;
-  
+    msg = "Current DC: " + String(current_DC); Serial.println(msg);
+    
     //building and saving the data string from temp
     String build;
-    for(int i = 0; i < sizeof(temp); i++) {
+    for(int i = 0; i < sizeof(temp)/sizeof(temp[0]); i++) {
       build += String(temp[i]) + ",";
     }
+    Serial.println(build);
     saveData(build);
     
     a += delta_t; //we're still doing this I guess
