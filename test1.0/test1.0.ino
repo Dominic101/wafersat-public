@@ -16,7 +16,8 @@ float previous_error = 0; // for the derivative of the error
 float a,integral,current_DC; //these need to be global scope so i'm declaring them here
 CircularBuffer derivative_errors(4); //this buffer will hold four derivative error values
 File dataFile; // for writing to a file, not implemented yet
-String filename; 
+String filename = "";
+bool csvnamed = false; 
 
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
@@ -181,71 +182,74 @@ void setup() {
   SPI.begin();
   SPI.beginTransaction(settings);
 
-  //Here I was testing opening a new file
-  filename = "Test0001.csv";
-  dataFile = SD.open(filename, FILE_WRITE);
-  dataFile.close();
-
-
   // heater
   pinMode(HEATER_PIN, OUTPUT);
  
   Serial.println("Setup complete.");
+  Serial.println("Enter file name, please include '.csv' at the end");
 }
 
 void loop() {
-  String temp; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
-  temp = millis()/1000.0; //time in seconds..?
-
-  // This should read the 8 temperatures and record them.
-  for(int i = 0; i<RTD_list; i++) {
-    temp[i] = TFD(adc.read(i));
-  }
-
-  // Calculate the average temperature of the board
-  float sum = 0;
-  for(int i = 1; i < sizeof(temp); i++) {
-    sum += temp[i];
-  }
-  float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
-  temp[9] = avg_temp;
+  if (csvnamed == false) {
+    if (Serial.available() > 0) {
+      filename = Serial.readString();
+      Serial.print("The file is named to: "); Serial.println(filename);
+      csvnamed = true;
+    }
+  } else {
+    String temp; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+    temp = millis()/1000.0; //time in seconds..?
   
-  //this runs once for the filter
-  if(a==0) {
-    x_old = avg_temp;
-  }
-
- 
-  float filtered_temp = davefilter(avg_temp); //apply filter
-  temp[10] = filtered_temp;
-
-  // copying old python PID, we can change how this works
-  // also note that PID no longer returns duty cycle
-  if(a<25) {
-    if(abs(filtered_temp-avg_temp)<0.5) {
-      PID(filtered_temp, goal);
+    // This should read the 8 temperatures and record them.
+    for(int i = 0; i<RTD_list; i++) {
+      temp[i] = TFD(adc.read(i));
+    }
+  
+    // Calculate the average temperature of the board
+    float sum = 0;
+    for(int i = 1; i < sizeof(temp); i++) {
+      sum += temp[i];
+    }
+    float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
+    temp[9] = avg_temp;
+    
+    //this runs once for the filter
+    if(a==0) {
+      x_old = avg_temp;
+    }
+  
+   
+    float filtered_temp = davefilter(avg_temp); //apply filter
+    temp[10] = filtered_temp;
+  
+    // copying old python PID, we can change how this works
+    // also note that PID no longer returns duty cycle
+    if(a<25) {
+      if(abs(filtered_temp-avg_temp)<0.5) {
+        PID(filtered_temp, goal);
+      }
+      else {
+        PID(avg_temp,goal);
+      }
     }
     else {
-      PID(avg_temp,goal);
+      if(abs(filtered_temp-avg_temp)<1.5) {
+        PID(filtered_temp, goal);
+      }
+      else {
+        PID(avg_temp,goal);
+      }
     }
-  }
-  else {
-    if(abs(filtered_temp-avg_temp)<1.5) {
-      PID(filtered_temp, goal);
-    }
-    else {
-      PID(avg_temp,goal);
-    }
-  }
-  temp[11] = current_DC;
-
-  //building and saving the data string from temp
-  String build;
-  for(int i = 0; i < sizeof(temp); i++) {
-    build += String(temp[i]) + ",";
-  }
-  saveData(build);
+    temp[11] = current_DC;
   
-  a += delta_t; //we're still doing this I guess
-  delay(delta_t*1000); //sleep time
+    //building and saving the data string from temp
+    String build;
+    for(int i = 0; i < sizeof(temp); i++) {
+      build += String(temp[i]) + ",";
+    }
+    saveData(build);
+    
+    a += delta_t; //we're still doing this I guess
+    delay(delta_t*1000); //sleep time
+  }
 }
