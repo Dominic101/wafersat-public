@@ -6,6 +6,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Math.h>
+#include <Time.h>
 
 int RTD_list = 8; // This is not really a list anymore. Loop through int 0-7 to access the channel from adc.
 int goal = 20; //goal temperature, can be an int or change to float 
@@ -15,6 +16,10 @@ float previous_error = 0; // for the derivative of the error
 float a,integral,current_DC; //these need to be global scope so i'm declaring them here
 CircularBuffer derivative_errors(4); //this buffer will hold four derivative error values
 File dataFile; // for writing to a file, not implemented yet
+String filename = "";
+bool csvnamed = false; 
+float starttime;
+String msg = "";
 
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
@@ -24,6 +29,12 @@ File dataFile; // for writing to a file, not implemented yet
 #define ADC_CLK     1000000  // SPI clock 1.0MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
 const int CS_PIN = 10;
+
+
+/*
+ * Setting up heater.
+ */
+#define HEATER_PIN  12
 
 /* 
  * Takes unfiltered average temperature and applies a low-pass filter.
@@ -43,7 +54,7 @@ float davefilter(float avg_temp, float a = 0.3) {
 float sigmoid(float PID_sum) {
   float funct_shift = PID_sum-4.0;
   float sigmoid = exp(funct_shift)/(exp(funct_shift)+1);
-  return sigmoid*100.0;
+  return sigmoid*255.0;
 }
 
 /* 
@@ -63,7 +74,11 @@ void update_derivatives(float new_der) {
 /*
 For converting single data points into temperature readings.
 Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
+
+George: revised readings according to manufacture datasheet, 
+quartic fit through temp vs. resistance data points over interval [-200, 100] deg C
 */
+
 float TFD(float data) {
     float a = 2.725076799546500*pow(10.0,-12.0);
     float b = -1.231253679636238*pow(10.0,-8.0);
@@ -129,20 +144,35 @@ void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0)
   }
   float PID_sum = (error*Kp)+(integral*Ki)+(av_dev*Kd);
   current_DC = sigmoid(PID_sum);
-  //heater.ChangeDutyCycle(current_DC); I DON'T KNOW HOW TO DO THIS YET!! 
+  analogWrite(HEATER_PIN, current_DC);
+}
+
+// helper function to append entire row of data (temp) to csv
+void saveData(String data){
+  if(SD.exists(filename)){ // check the card is still there
+  // now append new data file
+    dataFile = SD.open(filename, FILE_WRITE);
+    if (dataFile){
+      dataFile.println(data);
+      dataFile.close(); // close the file
+    }
+  }
+  else{
+  Serial.println("Error writing to file !");
+  }
 }
 
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  Serial.println("Initializing Card");
+  Serial.println("Initializing Card...");
   pinMode(CS_PIN, OUTPUT);
   if(!SD.begin(CS_PIN)) {
-    Serial.println("Card Failure");
+    Serial.println("Card Failure.");
     return;
   }
-  Serial.println("Card Ready");
+  Serial.println("Card Detected!");
   
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -159,62 +189,81 @@ void setup() {
   SPI.begin();
   SPI.beginTransaction(settings);
 
-  //Here I was testing opening a new file
-  String filename = "Test0001.csv";
-  dataFile = SD.open(filename, FILE_WRITE);
-  dataFile.close();
-  
-  Serial.println("Setup complete");
+  // heater
+  pinMode(HEATER_PIN, OUTPUT);
+ 
+  Serial.println("Setup complete.");
+  Serial.println("Enter file name, please include '.csv' at the end");
 }
 
 void loop() {
-  float temp[12]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
-  temp[0] = millis()/1000.0; //time in seconds..?
-
-  // This should read the 8 temperatures and record them.
-  for(int i = 0; i<RTD_list; i++) {
-    temp[i] = TFD(adc.read(i));
-  }
-
-  // Calculate the average temperature of the board
-  float sum = 0;
-  for(int i = 1; i < sizeof(temp); i++) {
-    sum += temp[i];
-  }
-  float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
-  temp[9] = avg_temp;
+  if (csvnamed == false) { // this runs only when file is unnamed
+    if (Serial.available() > 0) {
+      filename = Serial.readString(); // takes in user-defined filename, make sure to include .csv at the end
+      dataFile = SD.open(filename, FILE_WRITE);
+      dataFile.close();
+      Serial.print("The file is named to: "); Serial.println(filename);
+      csvnamed = true;
+      starttime = millis()/1000.0;
+    }
+  } else {
+    float temp[12]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+    temp[0] = millis()/1000.0 - starttime; //time in seconds..?
   
-  //this runs once for the filter
-  if(a==0) {
-    x_old = avg_temp;
-  }
-
- 
-  float filtered_temp = davefilter(avg_temp); //apply filter
-  temp[10] = filtered_temp;
-
-  // copying old python PID, we can change how this works
-  // also note that PID no longer returns duty cycle
-  if(a<25) {
-    if(abs(filtered_temp-avg_temp)<0.5) {
-      PID(filtered_temp, goal);
+    // This should read the 8 temperatures and record them.
+    for(int i = 1; i<=RTD_list; i++) {
+      temp[i] = TFD(adc.read(i));
+    }
+  
+    // Calculate the average temperature of the board
+    float sum = 0;
+    for(int i = 1; i <= RTD_list; i++) {
+      sum += temp[i];
+    }
+    float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
+    temp[9] = avg_temp;
+    msg = "Average temp: " + String(avg_temp); Serial.println(msg);
+    
+    //this runs once for the filter
+    if(a==0) {
+      x_old = avg_temp;
+    }
+  
+   
+    float filtered_temp = davefilter(avg_temp); //apply filter
+    temp[10] = filtered_temp;
+    msg = "Filtered temp: " + String(filtered_temp); Serial.println(msg);
+    
+    // copying old python PID, we can change how this works
+    // also note that PID no longer returns duty cycle
+    if(a<25) {
+      if(abs(filtered_temp-avg_temp)<0.5) {
+        PID(filtered_temp, goal);
+      }
+      else {
+        PID(avg_temp,goal);
+      }
     }
     else {
-      PID(avg_temp,goal);
+      if(abs(filtered_temp-avg_temp)<1.5) {
+        PID(filtered_temp, goal);
+      }
+      else {
+        PID(avg_temp,goal);
+      }
     }
+    temp[11] = current_DC;
+    msg = "Current DC: " + String(current_DC); Serial.println(msg);
+    
+    //building and saving the data string from temp
+    String build;
+    for(int i = 0; i < sizeof(temp)/sizeof(temp[0]); i++) {
+      build += String(temp[i]) + ",";
+    }
+    Serial.println(build);
+    saveData(build);
+    
+    a += delta_t; //we're still doing this I guess
+    delay(delta_t*1000); //sleep time
   }
-  else {
-    if(abs(filtered_temp-avg_temp)<1.5) {
-      PID(filtered_temp, goal);
-    }
-    else {
-      PID(avg_temp,goal);
-    }
-  }
-  temp[11] = current_DC;
-  
-  //Here we should save temp to file somehow
-
-  a += delta_t; //we're still doing this I guess
-  delay(delta_t*1000); //sleep time
 }
