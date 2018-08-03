@@ -8,10 +8,9 @@
 #include <Math.h>
 #include <Time.h>
 
-int RTD_list = 8; // This is not really a list anymore. Loop through int 0-7 to access the channel from adc.
-int goal = 20; //goal temperature, can be an int or change to float 
+const int goal = 20; //goal temperature, can be an int or change to float 
 float x_old = 0; // for filter
-float delta_t = 0.5; //how often we'll be taking data and adjusting duty cycle
+const float delta_t = 0.5; //how often we'll be taking data and adjusting duty cycle
 float previous_error = 0; // for the derivative of the error
 float a,integral,current_DC; //these need to be global scope so i'm declaring them here
 CircularBuffer derivative_errors(4); //this buffer will hold four derivative error values
@@ -19,20 +18,32 @@ File dataFile; // for writing to a file, not implemented yet
 String filename = "";
 bool csvnamed = false; 
 
+const float alpha = 2.725076799546500*pow(10.0,-12.0);
+const float beta = -1.231253679636238*pow(10.0,-8.0);
+const float kappa = 3.046224786805958*pow(10.0,-5.0);
+const float supplyVoltage = 1.024;
+const float rl = 10000;
+const float r25 = 10000.0;
+
+const float Ki = 0.1;
+const float Kp = 2.0;
+const float Kd = 1.0;
+
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
  */
-#define SPI_CS      2        // SPI slave select
-#define ADC_VREF    3300     // 3.3V Vref
-#define ADC_CLK     1000000  // SPI clock 1.0MHz
+const int SPI_CS = 2;      // SPI slave select
+const float ADC_VREF = 3300;    // 3.3V Vref
+const float ADC_CLK = 1000000;  // SPI clock 1.0MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
 const int CS_PIN = 10;
-
+const int MUX_A = 3;
+const int MUX_B = 4;
 
 /*
  * Setting up heater.
  */
-#define HEATER_PIN  12
+const int HEATER_PIN = 12;
 
 /* 
  * Takes unfiltered average temperature and applies a low-pass filter.
@@ -74,57 +85,19 @@ For converting single data points into temperature readings.
 Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
 */
 float TFD(float data) {
-    float a = 2.725076799546500*pow(10.0,-12.0);
-    float b = -1.231253679636238*pow(10.0,-8.0);
-    float c = 3.046224786805958*pow(10.0,-5.0);
-    float d = 0.221027985508455;
-    float e = -241.9045208388455;
-    float V;
-    float R;
-
-    if( data != 1 ) {
-        V = data*3.3;
-        R = (2700*V)/(3.3-V); //Based on voltage divider circuit with 2.7 k resistor
-    //in series with RTD powered on 3.3 V,
-  }
-
-    else { // #in case of dividing by 0
-        R = 100000;  //arbitrary value for extremely high R (most likely
-        //due to error)
-  }       
-    float T = a*pow(R,4.0) + b*pow(R,3.0) + c*pow(R,2.0) + d*R + e;
-    return round(T*100)/100.0;
+    float ratio = data/float(4096); //divide by 12 bits
+    float vout = ratio * supplyVoltage;
+    float resistance = (ratio*rl)/(1-ratio);
+    float temperature = (1/(alpha+beta*log(resistance/r25)+kappa*pow((log(resistance/r25)),3)))-273.15;
+    return round(temperature*100)/100.0;
 }
 
-/*
- * Returns current temperature of an RTD
- * RTD should be int range 0 to 7 corresponding to RTD channels
- */
-float get_temp(int RTD) {
-  //gets ADC reading from selected RTD, a float range 0-1 reading = float(adc.read(RTD)/4096)
-  //reading = RTD_list[RTD].value; CHANGE TO THIS
-  float reading = RTD; 
-  float temp = TFD(reading);
-    
-  return temp;
-}
-
-/*
- * Returns current voltage drop over an RTD, assuming Vref connected to 3.3 V
- * RTD should be int range 0 to 7 corresponding to RTD channels
-*/
-float get_voltage(int RTD) {
-//reading = RTD_list[RTD].value; CHANGE TO THIS
-  float reading = RTD;
-  float voltage = reading*3.3;
-  return voltage;
-}
 
 /*
  * This method calculates the PID value, updates previous error,buffer, and current_DC
  * Does not currently return the duty cycle, just updates the value in the global scope.
  */
-void PID(float temp, float want, float Ki = 0.1, float Kp = 2.0, float Kd = 1.0) {
+void PID(float temp, float want) {
   float error = want - temp;
   if(a>=50) {
     integral += error*delta_t;
@@ -173,6 +146,8 @@ void setup() {
 
   // configure PIN mode, copied from example MCP3208 code (do we need this?)
   pinMode(SPI_CS, OUTPUT);
+  pinMode(MUX_A, OUTPUT);
+  pinMode(MUX_B, OUTPUT);
 
   // set initial PIN state, copied from example MCP3208 code (do we need this?)
   digitalWrite(SPI_CS, HIGH);
@@ -197,21 +172,36 @@ void loop() {
       csvnamed = true;
     }
   } else {
-    String temp; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
-    temp = millis()/1000.0; //time in seconds..?
+    float temp[20]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+    temp[0] = millis()/1000.0; //time in seconds
   
     // This should read the 8 temperatures and record them.
-    for(int i = 0; i<RTD_list; i++) {
+    digitalWrite(MUX_A, HIGH);
+    digitalWrite(MUX_B, LOW);
+    for(int i = 1; i<7; i++) {
+      temp[i] = TFD(adc.read(i));
+    }
+
+    digitalWrite(MUX_A, LOW);
+    digitalWrite(MUX_B, HIGH);
+    for(int i = 7; i<13; i++) {
+      temp[i] = TFD(adc.read(i));
+    }
+
+    digitalWrite(MUX_A, HIGH);
+    digitalWrite(MUX_B, HIGH);
+    for(int i = 13; i<19; i++) {
       temp[i] = TFD(adc.read(i));
     }
   
     // Calculate the average temperature of the board
     float sum = 0;
-    for(int i = 1; i < sizeof(temp); i++) {
+    for(int i = 1; i <= 18; i++) {
       sum += temp[i];
     }
-    float avg_temp = sum/8.0; //8? 7? 6 RTDs total?
-    temp[9] = avg_temp;
+    
+    float avg_temp = sum/18.0;
+    temp[19] = avg_temp;
     
     //this runs once for the filter
     if(a==0) {
@@ -220,7 +210,8 @@ void loop() {
   
    
     float filtered_temp = davefilter(avg_temp); //apply filter
-    temp[10] = filtered_temp;
+    temp[20] = filtered_temp;
+
   
     // copying old python PID, we can change how this works
     // also note that PID no longer returns duty cycle
@@ -240,11 +231,12 @@ void loop() {
         PID(avg_temp,goal);
       }
     }
-    temp[11] = current_DC;
+    temp[21] = current_DC;
+
   
     //building and saving the data string from temp
     String build;
-    for(int i = 0; i < sizeof(temp); i++) {
+    for(int i = 0; i < sizeof(temp)/sizeof(temp[0]); i++) {
       build += String(temp[i]) + ",";
     }
     saveData(build);
