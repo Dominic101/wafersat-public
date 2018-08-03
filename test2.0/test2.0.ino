@@ -6,7 +6,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Math.h>
-#include <Time.h>
+
 
 const int goal = 20; //goal temperature, can be an int or change to float 
 float x_old = 0; // for filter
@@ -18,9 +18,9 @@ File dataFile; // for writing to a file, not implemented yet
 String filename = "";
 bool csvnamed = false; 
 
-const float alpha = 2.725076799546500*pow(10.0,-12.0);
-const float beta = -1.231253679636238*pow(10.0,-8.0);
-const float kappa = 3.046224786805958*pow(10.0,-5.0);
+const float alpha = 0.00269;
+const float beta = 0.0002844;
+const float kappa = 7.269*pow(10,-7);
 const float supplyVoltage = 1.024;
 const float rl = 10000;
 const float r25 = 10000.0;
@@ -172,24 +172,28 @@ void loop() {
       csvnamed = true;
     }
   } else {
-    float temp[20]; // this will hold time, 8 temperatures of the RTDs, average, filtered average, duty cycle (so size is 12)
+    float starttime = millis();
+    float temp[21]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
     temp[0] = millis()/1000.0; //time in seconds
   
-    // This should read the 8 temperatures and record them.
+    // This should read the 18 temperatures and record them.
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, LOW);
+    delay(1); //delay before setting mux
     for(int i = 1; i<7; i++) {
       temp[i] = TFD(adc.read(i));
     }
 
     digitalWrite(MUX_A, LOW);
     digitalWrite(MUX_B, HIGH);
+    delay(1); //delay before setting mux
     for(int i = 7; i<13; i++) {
       temp[i] = TFD(adc.read(i));
     }
 
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, HIGH);
+    delay(1); //delay before setting mux
     for(int i = 13; i<19; i++) {
       temp[i] = TFD(adc.read(i));
     }
@@ -239,9 +243,10 @@ void loop() {
     for(int i = 0; i < sizeof(temp)/sizeof(temp[0]); i++) {
       build += String(temp[i]) + ",";
     }
+    Serial.println(build);
     saveData(build);
     
     a += delta_t; //we're still doing this I guess
-    delay(delta_t*1000); //sleep time
+    delay((delta_t*1000)-starttime); //sleep time
   }
 }
