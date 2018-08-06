@@ -1,3 +1,5 @@
+#include <SD.h>
+
 // GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
 // GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
 
@@ -22,8 +24,8 @@ const float alpha = 0.00269;
 const float beta = 0.0002844;
 const float kappa = 7.269*pow(10,-7);
 const float supplyVoltage = 1.024;
-const float rl = 10000;
-const float r25 = 10000.0;
+const float rl = 10000.0;
+const float r25 = 1000.0;
 
 const float Ki = 0.1;
 const float Kp = 2.0;
@@ -32,18 +34,18 @@ const float Kd = 1.0;
 /*
  * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
  */
-const int SPI_CS = 2;      // SPI slave select
-const float ADC_VREF = 3300;    // 3.3V Vref
-const float ADC_CLK = 1000000;  // SPI clock 1.0MHz
+const int SPI_CS = 10;      // SPI slave select
+const float ADC_VREF = 1024;    // 1.024V Vref
+const float ADC_CLK = 500000;  // SPI clock 0.5 MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
-const int CS_PIN = 10;
+const int CS_PIN_SD = 2;
 const int MUX_A = 3;
 const int MUX_B = 4;
 
 /*
  * Setting up heater.
  */
-const int HEATER_PIN = 12;
+//const int HEATER_PIN = 12;
 
 /* 
  * Takes unfiltered average temperature and applies a low-pass filter.
@@ -85,7 +87,8 @@ For converting single data points into temperature readings.
 Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
 */
 float TFD(float data) {
-    float ratio = data/float(4096); //divide by 12 bits
+    Serial.println(data);
+    float ratio = data/4096.0; //divide by 12 bits
     float vout = ratio * supplyVoltage;
     float resistance = (ratio*rl)/(1-ratio);
     float temperature = (1/(alpha+beta*log(resistance/r25)+kappa*pow((log(resistance/r25)),3)))-273.15;
@@ -111,7 +114,7 @@ void PID(float temp, float want) {
   }
   float PID_sum = (error*Kp)+(integral*Ki)+(av_dev*Kd);
   current_DC = sigmoid(PID_sum);
-  analogWrite(HEATER_PIN, current_DC);
+//  analogWrite(HEATER_PIN, current_DC);
 }
 
 void saveData(String data){
@@ -132,9 +135,10 @@ void saveData(String data){
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  
   Serial.println("Initializing Card...");
-  pinMode(CS_PIN, OUTPUT);
-  if(!SD.begin(CS_PIN)) {
+  pinMode(CS_PIN_SD, OUTPUT);
+  if(!SD.begin(CS_PIN_SD, SPI_HALF_SPEED)) {
     Serial.println("Card Failure.");
     return;
   }
@@ -158,7 +162,7 @@ void setup() {
   SPI.beginTransaction(settings);
 
   // heater
-  pinMode(HEATER_PIN, OUTPUT);
+//  pinMode(HEATER_PIN, OUTPUT);
  
   Serial.println("Setup complete.");
   Serial.println("Enter file name, please include '.csv' at the end");
@@ -175,28 +179,57 @@ void loop() {
     float starttime = millis();
     float temp[21]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
     temp[0] = millis()/1000.0; //time in seconds
-  
+    
     // This should read the 18 temperatures and record them.
-    digitalWrite(MUX_A, HIGH);
-    digitalWrite(MUX_B, LOW);
-    delay(1); //delay before setting mux
-    for(int i = 1; i<7; i++) {
-      temp[i] = TFD(adc.read(i));
-    }
-
     digitalWrite(MUX_A, LOW);
     digitalWrite(MUX_B, HIGH);
-    delay(1); //delay before setting mux
-    for(int i = 7; i<13; i++) {
-      temp[i] = TFD(adc.read(i));
-    }
+    delay(200); //delay before setting mux
+    
+    temp[1] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(10);
+    temp[2] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(10);
+    temp[3] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(10);
+    temp[4] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(10);
+    temp[5] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(10);
+    temp[6] = TFD(adc.read(MCP3208::SINGLE_5));
+    
+    
+
+    digitalWrite(MUX_A, HIGH);
+    digitalWrite(MUX_B, LOW);
+    delay(200); //delay before setting mux
+    temp[7] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(10);
+    temp[8] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(10);
+    temp[9] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(10);
+    temp[10] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(10);
+    temp[11] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(10);
+    temp[12] = TFD(adc.read(MCP3208::SINGLE_5));
+    
 
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, HIGH);
-    delay(1); //delay before setting mux
-    for(int i = 13; i<19; i++) {
-      temp[i] = TFD(adc.read(i));
-    }
+    delay(200); //delay before setting mux
+    temp[13] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(10);
+    temp[14] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(10);
+    temp[15] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(10);
+    temp[16] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(10);
+    temp[17] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(10);
+    temp[18] = TFD(adc.read(MCP3208::SINGLE_5));
+    
   
     // Calculate the average temperature of the board
     float sum = 0;
@@ -244,9 +277,9 @@ void loop() {
       build += String(temp[i]) + ",";
     }
     Serial.println(build);
-    saveData(build);
+    //saveData(build);
     
     a += delta_t; //we're still doing this I guess
-    delay((delta_t*1000)-starttime); //sleep time
+    delay(500); //sleep time
   }
 }
