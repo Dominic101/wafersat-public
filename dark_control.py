@@ -11,32 +11,34 @@ PID Controller
 Records the temperature of the 8 RTD sensors. Based on the average temperature of 
 sensors, the algorithm turns the heaters on or off (100% duty cycle)
 """
-import sh
+
 from time import sleep
 import time as timey
 import RPi.GPIO as GPIO
 import csv
-import subprocess
+import math
 from datetime import datetime
 import current_RTD_quar as rtd
-import os
-from numpy import mean,math  
-x_old=None
-integral=0
+
+x_old=None # for laplace filter 
+integral=0 # I term for PID controller
+current_DC = 0.0 # duty cycle
+previous_error = 0 # for taking the derivative error
+derivative_errors = [0,0,0,0] # keeps track of last four derivative errors
+fixit = 0.0 # "fixit" term for PD controller
+numloops = 0 # iterator
+delta_t = 0.5 # Time between sampling. SET THIS HERE
+
 #Setting up the heaters (both heaters are connected to pin 25 right now)
 GPIO.setmode(GPIO.BCM) 
 GPIO.setwarnings(False)
-GPIO.setup(25,GPIO.OUT) #in the future, pin24 will also be an out for the heaters
-heater = GPIO.PWM(25,20) #frequency is 20 (?)
+GPIO.setup(25,GPIO.OUT) #Use pin25 for both heaters (pin24 is broken in rev1.2)
+heater = GPIO.PWM(25,20) #frequency is 20Hz, pin is 25
 heater.start(0) #starts the heaters, duty cycle 0
-current_DC = 0.0
-previous_error = 0
-derivative_errors = [0,0,0,0]
-fixit = 0.0
-a = 0
+
 
     
-def Qi_track(goal, delta, t, control_alg, cool_down):
+def run(goal, time, control_alg, cool_down):
     """
     Function measures values from sensor and MCP3008 and writes temperature 
     values to a csv file at a rate of 1/w samples a second. It prints out and
@@ -59,96 +61,83 @@ def Qi_track(goal, delta, t, control_alg, cool_down):
     """
     global x_old
     global current_DC
-    recording = False
+    global numloops
+    global delta_t
     start_time = timey.time()
     timeforfile = datetime.now()
     timeforfile = timeforfile.strftime("%Y-%m-%d - %H:%M") 
     filename = timeforfile + str(control_alg.__name__) + '.csv'
     filename = filename.replace(' ', '')
     
-    try: #tells you if data is recording or not
-        if '.csv' in filename:
-            with open(filename, 'a', newline = '') as file:
-                recording = True
-    except:    
+    with open(filename, 'a', newline = '') as file:
         pass
-        
-    w = .5  #wait inbetween steps
+
     current_DC = 0
-    global a
-    for a in range(t*100000):#t*100000 insures that input time dictates time of test
-        temp = [0]  
+
+    while(True):
+        loop_start = timey.time()
+        datarow = [0]  
         current_time=abs(start_time-timey.time())
-        temp[0] = round(current_time,2)
+        datarow[0] = round(current_time,2)
 	
-        for i in range(0,8): #recording new temperature values of the RTDs 
-            if i!=2 and i!=4:         
-                temp.append(rtd.get_temp(i))
+        for i in range(len(rtd.RTD_list)): #recording new temperature values of the RTDs 
+            if i!=2 and i!=4: #channel 2 on Rev1.2 is not functional. Channel 4 is being used for the cold plate. Ignoring both        
+                datarow.append(rtd.get_temp(i))
 	
-        #cpu_temp = str(float(sh.cat('/sys/class/thermal/thermal_zone0/temp')) / 1000)
-        #temp.append(cpu_temp)
-        #temp.append(current_DC)
-        
-        
+       
         #printing out values every two seconds
-        if a%4 == 0:  
-            print('t= ',temp[0])
-              ##  #.format(*RTD_val)) #0-1023 value from MCP3008
-            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}'
-           .format(*temp)) #temperature calculated from raw data.
+        if numloops%4 == 0:  
+            print('t = ',datarow[0])
+            ##  #.format(*RTD_val)) #0-1023 value from MCP3008
+            print('|t={0:^5}|{1:^7}|{2:^7}|{3:^7}|{4:^7}|{5:^7}|{6:^7}'.format(*datarow)) #temperature calculated from raw data.
 
-        #recording values into csv if file name provided        
-        if recording:
+
                 
-            #Calculating the average temperature of the board
-            sum_temps = 0.0
-            for i in range(1,7):
-                    sum_temps += temp[i]    
-            average_temp = sum_temps/6.0
-            temp.append(average_temp)
-            if a==0:
-                x_old=average_temp
-            filtered_temp=davefilter(average_temp)
-            temp.append(filtered_temp)
-            print('Filtered temp: ', filtered_temp)
-           # global current_DC
-            print('Average temp: ', average_temp)
-            plate_temp = rtd.get_temp(4)
-            print('Cold plate temp: ', plate_temp)
-            temp.append(plate_temp)
-            stop_heat=False
-            if current_time>=t:
-                stop_heat=True
-            if not stop_heat:
-                if a<25:
-                    if abs(filtered_temp-average_temp)<.5:
-                        current_DC=control_alg(filtered_temp, goal)
-                    else:
-                        current_DC=control_alg(average_temp, goal)
-                else:
-                    if abs(filtered_temp-average_temp)<1.5:
-                        current_DC=control_alg(filtered_temp, goal) #turns on/off heaters as necessary
-                    else:
-                        current_DC=control_alg(average_temp, goal)
-            elif cool_down and stop_heat:
-                heater.ChangeDutyCycle(0)
-                current_DC=0 
-                if current_time>=t+30:
-                    raise KeyboardInterrupt('cool_down complete')
-            else:
-                raise KeyboardInterrupt('heat test done')
-            print('Current DC:', current_DC)
-            
-            temp.append(current_DC)
+        #Calculating the average temperature of the board
+        sum_temps = 0.0
+        for i in range(1,len(datarow)):
+                sum_temps += datarow[i]    
+        average_temp = sum_temps/6.0 #divide by number of RTDs on board
+        datarow.append(average_temp)
+        if numloops==0:
+            x_old=average_temp #to make the filter work
+        filtered_temp = laplacefilter(average_temp)
+        datarow.append(filtered_temp)
+        print('Filtered temp: ', filtered_temp)
+        print('Average temp: ', average_temp)
+        plate_temp = rtd.get_temp(4) #currently the cold plate RTD is connected to channel 4
+        print('Cold plate temp: ', plate_temp)
+        datarow.append(plate_temp)
+        stop_heat=False
+        if current_time>=time:
+            stop_heat=True
+        if not stop_heat:
+            if abs(filtered_temp-average_temp)<.5: #checking if filter has caught up to actual data
+                current_DC=control_alg(filtered_temp, goal)
+            else: 
+                current_DC=control_alg(average_temp, goal)
 
-            with open(filename, 'a', newline = '') as file:
-                dat = csv.writer(file)
-                dat.writerow(temp)
-            
-            print("_"*72)
-            print("")              
-            a+=w #keeps track of step
-            sleep(w) #sleeps before next iteration    
+        elif cool_down and stop_heat:
+            heater.ChangeDutyCycle(0)
+            current_DC=0 
+            if current_time>=time+30: #cooldown is set to 30 seconds
+                raise KeyboardInterrupt('cool_down complete')
+        else:
+            raise KeyboardInterrupt('heat test done')
+        print('Current DC:', current_DC)
+        
+        datarow.append(current_DC)
+
+        with open(filename, 'a', newline = '') as file:
+            dat = csv.writer(file)
+            dat.writerow(datarow)
+        
+        print("_"*72)
+        print("")              
+        
+        loop_end = timey.time()
+        sleep(delta_t - (loop_end - loop_start)) # Sleeps for exactly delta_t minus code runtime
+        numloops += 1
         
 
 def bang_bang(temp, goal):
@@ -179,7 +168,8 @@ def bang_bang(temp, goal):
 
 def bang_bang2(temp,goal):
     '''
-    brings temp up to desired value and then turns heaters on when it falls below a delta range
+    Brings temp up to desired value and then turns heaters on when it falls below a delta range. 
+    Cretes a sawtooth average temperature.
     '''
     global current_DC
     error=temp-goal
@@ -193,6 +183,9 @@ def bang_bang2(temp,goal):
     return current_DC
 
 def P(temp, goal):
+    '''
+    Simple P controller. Does not use the sigmoid function to map the duty cycle between 0-100. 
+    '''
     global previous_error
     if goal-temp <= 0:
         heater.ChangeDutyCycle(0.0)
@@ -203,29 +196,28 @@ def P(temp, goal):
     
         error = goal-temp
         P = proportional_gain_value*error
-        PD_output = P
         
-        if PD_output < 0 :
-            PD_output = 0.0
-        if PD_output > 100:
-            PD_output = 100
-        heater.ChangeDutyCycle(PD_output)
-        return PD_output
+        if P < 0 :
+            P = 0.0
+        if P > 100:
+            P = 100
+        heater.ChangeDutyCycle(P)
+        return P
 
     
 def P2(temp,want, Kp=3.3):
+    '''
+    Second P controller. This version uses the sigmoid function to map the duty cycle between 0-100. 
+    This is the current version of the P controller (use this one)
+    '''
     global current_DC 
-    def get_error(temp,want,delta):
-       # if abs(want-temp)<delta or temp-want>0:
-       if want-temp<0:
-            return 0
-       else:
-            return want-temp#check if it should be the other way around
 
-    def P_control(Kp):
-        Pt = get_error(temp,want,delta) * Kp
-        return Pt
-    PID_sum=P_control(Kp)
+    if want-temp<0:
+        error = 0 #turns off controller if average temperature is above the target temperature
+    else:
+        error = want-temp #check if it should be the other way around
+    PID_sum = error * Kp       
+
     if PID_sum!=0:
         current_DC = sigmoid(PID_sum)
         heater.ChangeDutyCycle(current_DC)
@@ -236,29 +228,36 @@ def P2(temp,want, Kp=3.3):
 
 
 def update_derivatives(new_der):
+    '''
+    This method updates the derivative list with a new derivative error. 
+    '''
     global derivative_errors
     derivative_errors.pop(0)
-    derivative_errors.append(-new_der)
+    derivative_errors.append(-new_der) 
     #print(derivative_errors,'der errors')
 
 
 def get_average_der():
+    '''
+    Returns the average derivative error from the list of four
+    '''
     global derivative_errors
     return sum(derivative_errors) / 4.0
 
 
 def PD(temp, want, Kp=2):
     '''
-    This is not really what we want but close. D should only execute every 2 seconds not every time PD is called.
+    Not actually a PD controller. This is a controller we made up involving a "fixit" term.
     '''
     global current_DC
     global fixit
-    global a
+    global numloops
     global previous_error
+    global delta_t
     error = want - temp 
 
     if error < 0:
-        d_error = (error - previous_error) / 0.5
+        d_error = (error - previous_error) / delta_t
         previous_error = error
 #        update_derivatives(d_error)
         current_DC = 0.0
@@ -267,20 +266,19 @@ def PD(temp, want, Kp=2):
     else:
         Pt = error * Kp
 
-        d_error = (error - previous_error) / 0.5
+        d_error = (error - previous_error) / delta_t
         previous_error = error
         update_derivatives(d_error)
-        if a % 2 == 0 and a!=0:
+        if numloops % 2 == 0 and numloops!=0:
             if get_average_der() < 0.06 and error >.2:
                 fixit += 0.1
             
-            elif get_average_der() > 0.2 and a>60:
+            elif get_average_der() > 0.2 and numloops>60:
                 if fixit>=0:
                     fixit -= 0.5
             elif get_average_der() > .1:
                 if fixit>=0:
                     fixit -= 0.1
-        print('fixit: ', fixit)
         if error>.2:
             PID_sum = Pt + fixit*error
         else:
@@ -290,43 +288,23 @@ def PD(temp, want, Kp=2):
         return current_DC
 
 
-def PI(temp,want, Ki=.1, Kp=2):
-    global current_DC 
-    global integral
-    global a
-    error = want - temp
-    if a >= 50:
-        integral += error*0.5
-    print('integral =', integral)
-    if 3 < 0:
-        current_DC = 0.0
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-    else : 
-#        PID_sum=error*Kp+integral*Ki
-        if integral>0:
-            PID_sum=(error*Kp)+(integral*Ki)
-        else:
-             PID_sum=error*Kp
-        print('PIDSum = ',PID_sum)
-        current_DC = sigmoid(PID_sum)
-        heater.ChangeDutyCycle(current_DC)
-        return current_DC
-
-
 def PID(temp,want, Ki=.1, Kp=2, Kd=1):
+    '''
+    PID controller. Set proportionality constants manually. 
+    '''
     global current_DC 
     global integral
-    global a
+    global numloops
     global previous_error
+    global delta_t
     error = want - temp
-    if a >= 50:
-        integral += error*0.5
+    if numloops >= 50: #prevent integral windup in the beginning
+        integral += error*delta_t
     print('integral =', integral)
-    d_error = (error - previous_error) / 0.5
+    d_error = (error - previous_error) / delta_t
     previous_error = error
     update_derivatives(d_error)
-    if a>=2:
+    if numloops>=2: #make sure there are four derivatives in the derivative list before using
         av_dev=get_average_der()
     else:
         av_dev=0
@@ -335,16 +313,10 @@ def PID(temp,want, Ki=.1, Kp=2, Kd=1):
     current_DC = sigmoid(PID_sum)
     heater.ChangeDutyCycle(current_DC)
     return current_DC
-
-
-def fail_safe():
-    ''' implement if needed
-    '''
-    heater.ChangeDutyCycle(0)
     
 def sigmoid(PID_sum):
     '''
-    take in the value from the PID function and puts it into the sigmoid
+    Take in the value from the PID function and puts it into the sigmoid
     function which is shifted four units to the right. The result is then scaled 
     by 100.
     '''
@@ -353,91 +325,31 @@ def sigmoid(PID_sum):
     return sigmoid*100
 
 def cooling(temp, goal) :
+    '''
+    Heaters off
+    '''
     current_DC =0.0
     heater.ChangeDutyCycle(current_DC)
     return current_DC
     
-
-#def PID(temp,want, delta, Kp=2,Ki=.2,Kd=1.3,It=0,previous_error=0):
-#    def get_error(temp,want,delta):
-#        temp_avg = mean(temp[1:])
-#        if abs(want-temp_avg)<delta:
-#            return 0
-#        else:
-#            return want-temp_avg#check if it should be the other way around
-#    error=get_error(temp,want,delta)
-#    def P_control(Kp):
-#        Pt = error * Kp
-#        return Pt
-#    
-#    
-##    def I_control(It, Ki):
-##        It = It + error
-##        It = It * Ki
-##        return It
-#    
-#    
-#    def D_control(previous_error, Kd):
-#        Dt = (error-previous_error) * Kd
-#        # print(current_control_output_value, previous_control_output_value, Dt)
-#        return Dt
-#    previous_error=error
-#    PID_sum=P_control(Kp)+D_control(previous_error, Kd)
-#    heater.ChangeDutyCycle(sigmoid(PID_sum))
-#def fail_safe():
-#    ''' implement if needed
-#    '''
-
-#    heater.ChangeDutyCycle(0)
-#    
-#def sigmoid(PID_sum):
-#    '''
-#    take in the value from the PID function and puts it into the sigmoid
-#    function which is shifted four units to the right. The result is then scaled 
-#    by 100.
-#    '''
-#    funct_shift=PID_sum-4
-#    sigmoid=math.e**funct_shift/(math.e**funct_shift+1)
-#    return sigmoid*100
-
-
-#def PD(temp, goal, delta):
-#    global previous_error
-#    if goal-temp <= 0:
-#        heater.ChangeDutyCycle(0.0)
-#        return 0.0
-#    else: 
-#        #tuning coefficients
-#        proportional_gain_value = 0.82
-#        derivative_gain_value = 0.40
-#    
-#        error = goal-temp
-#        derivative_error = error - previous_error
-#        
-#        previous_error = error
-#        
-#        D = derivative_gain_value*derivative_error
-#        P = proportional_gain_value*error
-#        PD_output = P + D
-#        
-#        if PD_output < 0 :
-#            PD_output = 0.0
-#        if PD_output > 100:
-#            PD_output = 100
-#        heater.ChangeDutyCycle(PD_output)
-#        return PD_output
     
-def davefilter(avg_temp, a=.3, delta_t=.5):
+def laplacefilter(avg_temp, alpha = .3):
+    '''
+    See google drive for Miller's derivation.
+    '''
     global x_old
-    x_new=(1-a*delta_t)*x_old+delta_t*a**.5*avg_temp
-    o=a**.5*x_new
+    global delta_t
+    x_new=(1-alpha*delta_t)*x_old+delta_t*alpha**.5*avg_temp
+    o=alpha**.5*x_new
     x_old=x_new
     return o
     
 try:
-    print('trial started')
-    #filename, goal temp, delta, seconds to run with heat, control_alg, 
-    Qi_track(40, 2, 36000, cooling, cool_down=False)
+    print('test started')
+    '''
+    Arguments for run() : goal temp, seconds to run with heat, control_alg, cool_down boolean (set to 30 seconds, change in run())
+    '''
+    run(35, 36000, cooling, cool_down=False)
 except KeyboardInterrupt:
     print ('\n')
 finally:

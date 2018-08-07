@@ -4,15 +4,11 @@ Created on Thu Jun 21 10:37:19 2018
  
 Author: Raul Largaespada, modified by Charles Lindsy on 2.01.18 for PCBSat Rev1
 For WaferSat UROP Thermal Test Circuit with PCBSat Rev1
-Modified by Karolina Podsada and Dominic Maggio and George Chen on 07.26.18
+Modified by Karolina Podsada and Dominic Maggio and George Chen on 08.07.2018
 
 
 Python file for using Raspberry Pi as a data acquisition unit for measuring 
 temperatures using RTDs. 
-Note that this file assumes that all 8 channels are functioning and connected 
-to RTDs. If not all channels are being used, specify how many channels are 
-being used in the plot_temp function and make sure your circuit is only using 
-the first i channels on the MCP3208, where i is the number of desired channels.
 """
 
 from gpiozero import MCP3208
