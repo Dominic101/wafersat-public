@@ -1,8 +1,14 @@
+/*
+Authors: Karolina Podsada and George Chun Feng Chen
+
+GET SDFAT LIBRARY: https://github.com/greiman/SdFat
+GET SOFTSPI LIBRARY: https://github.com/MajenkoLibraries/SoftSPI
+GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
+GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
+*/
+
 #include <SoftSPI.h>
 #include "SdFat.h"
-// GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
-// GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tutorials/sparkfun-line-follower-array-hookup-guide#installing-the-arduino-library
-
 #include <Mcp3208.h>
 #include <sensorbar.h>
 #include <SPI.h>
