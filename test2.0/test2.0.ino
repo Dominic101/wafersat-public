@@ -16,18 +16,20 @@ GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tuto
 SdFat sd;
 
 const int goal = 20; //goal temperature, can be an int or change to float 
-float x_old = 0; // for filter
-const float delta_t = 0.5; //how often we'll be taking data and adjusting duty cycle
+float x_old = 0; // initialization of first term for filter
+const float delta_t = 0.5; // how often we'll be taking data and adjusting duty cycle
 float previous_error = 0; // for the derivative of the error
-float a,integral,current_DC; //these need to be global scope so i'm declaring them here
-CircularBuffer derivative_errors(4); //this buffer will hold four derivative error values
-File dataFile; // for writing to a file, not implemented yet
-String filename = "";
-bool csvnamed = false; 
+float numloops,integral,current_DC; // these need to be global scope so i'm declaring them here
+CircularBuffer derivative_errors(4); // this buffer will hold four derivative error values
+File dataFile; // initialize a file for writing to file
+String filename = ""; // initialize file name as string
+bool csvnamed = false; // only when this boolean is true, the recording code runs, otherwise it'll wait for user input
 
 const float alpha = 0.00269;
 const float beta = 0.0002844;
 const float kappa = 7.269*pow(10,-7);
+// three constant values above used in TFD()
+
 const float supplyVoltage = 1.024;
 const float rl = 10000.0;
 const float r25 = 1000.0;
@@ -35,9 +37,10 @@ const float r25 = 1000.0;
 const float Ki = 0.1;
 const float Kp = 2.0;
 const float Kd = 1.0;
+// three constant values for PID control, not yet tuned
 
 /*
- * Setting up the adc, check with Ishaan about the pin number, will not necessarily be 2
+ * Setting up the adc and all pins on board, MISO and MOSI for board and SD card shield are on different pins
  */
 const int SPI_CS = 2;      // SPI slave select
 const float ADC_VREF = 1024;    // 1.024V Vref
@@ -59,19 +62,17 @@ SoftSPI boardSPI(BOARD_MOSI, BOARD_MISO, BOARD_CLOCK);
 //const int HEATER_PIN = 12;
 
 /* 
- * Takes unfiltered average temperature and applies a low-pass filter.
- * This gain, a, is different from the a that is the iterator.
+ * Takes unfiltered average temperature signal and apply a low-pass filter through Laplace Transform.
  */
-float davefilter(float avg_temp, float a = 0.3) {
-  float x_new = (1-a*delta_t)*x_old+delta_t*pow(a,0.5)*avg_temp;
-  float o = pow(a,0.5)*x_new;
+float davefilter(float avg_temp, float alpha = 0.3) {
+  float x_new = (1-alpha*delta_t)*x_old+delta_t*pow(alpha,0.5)*avg_temp;
+  float o = pow(alpha,0.5)*x_new;
   x_old = x_new;
   return o;
 }
 
 /* 
- *  Modified sigmoid function takes any number and maps to a number between
- *  0 and 100.
+ *  Modified sigmoid function takes any number and maps to a number between 0 and 100.
  */
 float sigmoid(float PID_sum) {
   float funct_shift = PID_sum-4.0;
@@ -94,11 +95,12 @@ void update_derivatives(float new_der) {
 }
 
 /*
-For converting single data points into temperature readings.
-Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V
+Data should be a float value from 0 to 1, as read by ADC with Vref at 3.3 V.
+Using temp vs. resistance data from manufacturer as reference (data in Wafersat Google Drive), 
+apply Steinhart-Hart equation to convert resistance reading to temperature. 
+Coefficients alpha, beta, and kappa determined by MATLAB's least square fit. (MATLAB fitting file also available in Wafersat Google Drive)
 */
 float TFD(float data) {
-    Serial.println(data);
     float ratio = data/4096.0; //divide by 12 bits
     float vout = ratio * supplyVoltage;
     float resistance = (ratio*rl)/(1-ratio);
@@ -108,19 +110,19 @@ float TFD(float data) {
 
 
 /*
- * This method calculates the PID value, updates previous error,buffer, and current_DC
+ * This method calculates the PID value, updates previous error, buffer, and current_DC
  * Does not currently return the duty cycle, just updates the value in the global scope.
  */
 void PID(float temp, float want) {
   float error = want - temp;
-  if(a>=50) {
+  if(numloops>=50) {
     integral += error*delta_t;
   }
   float d_error = (error - previous_error)/delta_t;
   previous_error = error;
   update_derivatives(d_error);
   float av_dev = 0.0;
-  if(a>=2) {
+  if(numloops>=2) {
     av_dev = get_average_der();
   }
   float PID_sum = (error*Kp)+(integral*Ki)+(av_dev*Kd);
@@ -128,6 +130,9 @@ void PID(float temp, float want) {
 //  analogWrite(HEATER_PIN, current_DC);
 }
 
+/*
+ * A method that takes a row of data, and saves it in the file in the SD card
+ */
 void saveData(String data){
   if(!sd.card()->errorCode()){ // check the card is still there
   // now append new data file
@@ -142,6 +147,9 @@ void saveData(String data){
   }
 }
 
+/*
+ * A method that manually reads signals from a channel using soft SPI library
+ */
 unsigned int ADCRead(byte channel) {
   channel = constrain(channel,0,7);
   byte firstTX = 0b00000110;
@@ -159,7 +167,7 @@ unsigned int ADCRead(byte channel) {
 
 
 void setup() {
-  // put your setup code here, to run once:
+  // initializing card
   Serial.begin(9600);
   
   Serial.println("Initializing Card...");
@@ -174,7 +182,7 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
-  // configure PIN mode, copied from example MCP3208 code (do we need this?)
+  // configure PIN mode, copied from example MCP3208 code
   pinMode(SPI_CS, OUTPUT);
   pinMode(BOARD_MISO, INPUT);
   pinMode(BOARD_MOSI, OUTPUT);
@@ -186,16 +194,15 @@ void setup() {
   boardSPI.setDataMode(SPI_MODE0);
   //boardSPI.setClockDivider(SPI_CLOCK_DIV0);
 
-  // set initial PIN state, copied from example MCP3208 code (do we need this?)
+  // set initial PIN state, copied from example MCP3208 code
   digitalWrite(SPI_CS, HIGH);
 
-  // initialize SPI interface for MCP3208 copied from example MCP3208 code (do we need this?)
-
+  // initialize SPI interface for MCP3208 copied from example MCP3208 code
   SPI.begin();
   SPI.beginTransaction(settings);
 
   // heater
-//  pinMode(HEATER_PIN, OUTPUT);
+  // pinMode(HEATER_PIN, OUTPUT);
  
   Serial.println("Setup complete.");
   Serial.println("Enter file name, please include '.csv' at the end");
@@ -210,8 +217,8 @@ void loop() {
     }
   } else {
     float starttime = millis();
-    float temp[21]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
-    temp[0] = millis()/1000.0; //time in seconds
+    float datarow[21]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
+    datarow[0] = millis()/1000.0; //time in seconds
 
     SPI.beginTransaction(settings);
     // This should read the 18 temperatures and record them.
@@ -219,28 +226,25 @@ void loop() {
     digitalWrite(MUX_B, HIGH);
     delay(200); //delay before setting mux
     for(int i = 0; i<6; i++) {
-      temp[i+1] = TFD(ADCRead(i));
+      datarow[i+1] = TFD(ADCRead(i));
       delay(50);
     }
     
     
-    
-
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, LOW);
     delay(200); //delay before setting mux
     for(int i = 0; i<6; i++) {
-      temp[i+7] = TFD(ADCRead(i));
+      datarow[i+7] = TFD(ADCRead(i));
       delay(50);
     }
     
     
-
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, HIGH);
     delay(200); //delay before setting mux
     for(int i = 0; i<6; i++) {
-      temp[i+13] = TFD(ADCRead(i));
+      datarow[i+13] = TFD(ADCRead(i));
       delay(50);
     }
     
@@ -248,25 +252,25 @@ void loop() {
     // Calculate the average temperature of the board
     float sum = 0;
     for(int i = 1; i <= 18; i++) {
-      sum += temp[i];
+      sum += datarow[i];
     }
     
     float avg_temp = sum/18.0;
-    temp[19] = avg_temp;
+    datarow[19] = avg_temp;
     
     //this runs once for the filter
-    if(a==0) {
+    if(numloops == 0) {
       x_old = avg_temp;
     }
   
    
     float filtered_temp = davefilter(avg_temp); //apply filter
-    temp[20] = filtered_temp;
+    datarow[20] = filtered_temp;
 
   
     // copying old python PID, we can change how this works
     // also note that PID no longer returns duty cycle
-    if(a<25) {
+    if(numloops < 25) {
       if(abs(filtered_temp-avg_temp)<0.5) {
         PID(filtered_temp, goal);
       }
@@ -282,19 +286,19 @@ void loop() {
         PID(avg_temp,goal);
       }
     }
-    temp[21] = current_DC;
+    datarow[21] = current_DC;
 
   
     //building and saving the data string from temp
     String build;
-    for(int i = 0; i < sizeof(temp)/sizeof(temp[0]); i++) {
-      build += String(temp[i]) + ",";
+    for(int i = 0; i < sizeof(datarow)/sizeof(datarow[0]); i++) {
+      build += String(datarow[i]) + ",";
     }
     Serial.println(build);
     
     saveData(build);
     
-    a += delta_t; //we're still doing this I guess
+    numloops += delta_t; 
     delay(500); //sleep time
   }
 }
