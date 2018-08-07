@@ -349,7 +349,7 @@ try:
     '''
     Arguments for run() : goal temp, seconds to run with heat, control_alg, cool_down boolean (set to 30 seconds, change in run())
     '''
-    run(35, 36000, cooling, cool_down=False)
+    run(35, 120, bang_bang2, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
