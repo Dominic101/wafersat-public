@@ -1,6 +1,5 @@
-/*
-Authors: Karolina Podsada and George Chun Feng Chen
 
+/*
 GET SDFAT LIBRARY: https://github.com/greiman/SdFat
 GET SOFTSPI LIBRARY: https://github.com/MajenkoLibraries/SoftSPI
 GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
@@ -15,9 +14,15 @@ GET SENSORBAR LIBRARY WITH THE CIRCULAR BUFFER : https://learn.sparkfun.com/tuto
 #include <Math.h>
 SdFat sd;
 
+<<<<<<< HEAD
+const int goal = 35; //goal temperature, can be an int or change to float 
+float x_old = 0; // for filter
+const float delta_t = 0.5; //how often we'll be taking data and adjusting duty cycle
+=======
 const int goal = 20; //goal temperature, can be an int or change to float 
 float x_old = 0; // initialization of first term for filter
 const float delta_t = 0.5; // how often we'll be taking data and adjusting duty cycle
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
 float previous_error = 0; // for the derivative of the error
 float numloops,integral,current_DC; // these need to be global scope so i'm declaring them here
 CircularBuffer derivative_errors(4); // this buffer will hold four derivative error values
@@ -42,24 +47,24 @@ const float Kd = 1.0;
 /*
  * Setting up the adc and all pins on board, MISO and MOSI for board and SD card shield are on different pins
  */
-const int SPI_CS = 2;      // SPI slave select
+const int SPI_CS = 4;      // SPI slave select
 const float ADC_VREF = 1024;    // 1.024V Vref
 const float ADC_CLK = 2000000;  // SPI clock 2.0 MHz
 MCP3208 adc(ADC_VREF, SPI_CS);
 const int CS_PIN_SD = 10;
-const int MUX_A = 3;
-const int MUX_B = 4;
-const int BOARD_MISO = 6;
-const int BOARD_MOSI = 5;
-const int BOARD_CLOCK = 7;
+const int MUX_A = 5;
+const int MUX_B = 6;
+//const int BOARD_MISO = 12;
+//const int BOARD_MOSI = 11;
+//const int BOARD_CLOCK = 13;
 SPISettings settings(ADC_CLK, MSBFIRST, SPI_MODE0);
-SoftSPI boardSPI(BOARD_MOSI, BOARD_MISO, BOARD_CLOCK);
+//SoftSPI boardSPI(BOARD_MOSI, BOARD_MISO, BOARD_CLOCK);
 
 
 /*
  * Setting up heater.
  */
-//const int HEATER_PIN = 12;
+const int HEATER_PIN = 7;
 
 /* 
  * Takes unfiltered average temperature signal and apply a low-pass filter through Laplace Transform.
@@ -103,7 +108,7 @@ Coefficients alpha, beta, and kappa determined by MATLAB's least square fit. (MA
 float TFD(float data) {
     float ratio = data/4096.0; //divide by 12 bits
     float vout = ratio * supplyVoltage;
-    float resistance = (ratio*rl)/(1-ratio);
+    float resistance = (rl - ratio*rl)/(ratio);
     float temperature = (1/(alpha+beta*log(resistance/r25)+kappa*pow((log(resistance/r25)),3)))-273.15;
     return round(temperature*100)/100.0;
 }
@@ -127,7 +132,7 @@ void PID(float temp, float want) {
   }
   float PID_sum = (error*Kp)+(integral*Ki)+(av_dev*Kd);
   current_DC = sigmoid(PID_sum);
-//  analogWrite(HEATER_PIN, current_DC);
+  analogWrite(HEATER_PIN, current_DC);
 }
 
 /*
@@ -148,8 +153,11 @@ void saveData(String data){
 }
 
 /*
+<<<<<<< HEAD
+=======
  * A method that manually reads signals from a channel using soft SPI library
  */
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
 unsigned int ADCRead(byte channel) {
   channel = constrain(channel,0,7);
   byte firstTX = 0b00000110;
@@ -163,7 +171,7 @@ unsigned int ADCRead(byte channel) {
   receivedData |= boardSPI.transfer(0);
   digitalWrite(SPI_CS, HIGH);
   return receivedData & 0xFFF;
-}
+}*/
 
 
 void setup() {
@@ -184,14 +192,14 @@ void setup() {
 
   // configure PIN mode, copied from example MCP3208 code
   pinMode(SPI_CS, OUTPUT);
-  pinMode(BOARD_MISO, INPUT);
-  pinMode(BOARD_MOSI, OUTPUT);
-  pinMode(BOARD_CLOCK, OUTPUT);
+  //pinMode(BOARD_MISO, INPUT);
+  //pinMode(BOARD_MOSI, OUTPUT);
+  //pinMode(BOARD_CLOCK, OUTPUT);
   pinMode(MUX_A, OUTPUT);
   pinMode(MUX_B, OUTPUT);
-  boardSPI.begin();
-  boardSPI.setBitOrder(LSBFIRST);
-  boardSPI.setDataMode(SPI_MODE0);
+  //boardSPI.begin();
+  //boardSPI.setBitOrder(LSBFIRST);
+  //boardSPI.setDataMode(SPI_MODE0);
   //boardSPI.setClockDivider(SPI_CLOCK_DIV0);
 
   // set initial PIN state, copied from example MCP3208 code
@@ -202,7 +210,11 @@ void setup() {
   SPI.beginTransaction(settings);
 
   // heater
+<<<<<<< HEAD
+  pinMode(HEATER_PIN, OUTPUT);
+=======
   // pinMode(HEATER_PIN, OUTPUT);
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
  
   Serial.println("Setup complete.");
   Serial.println("Enter file name, please include '.csv' at the end");
@@ -217,36 +229,88 @@ void loop() {
     }
   } else {
     float starttime = millis();
+<<<<<<< HEAD
+    float temp[22]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
+    temp[0] = millis()/1000.0; //time in seconds
+=======
     float datarow[21]; // this will hold time, 18 temperatures of the RTDs, average, filtered average, duty cycle (so size is 21)
     datarow[0] = millis()/1000.0; //time in seconds
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
 
     SPI.beginTransaction(settings);
     // This should read the 18 temperatures and record them.
     digitalWrite(MUX_A, LOW);
     digitalWrite(MUX_B, HIGH);
     delay(200); //delay before setting mux
+<<<<<<< HEAD
+    
+    temp[1] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(50);
+    temp[2] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(50);
+    temp[3] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(50);
+    temp[4] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(50);
+    temp[5] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(50);
+    temp[6] = TFD(adc.read(MCP3208::SINGLE_5));
+    delay(50);
+    
+=======
     for(int i = 0; i<6; i++) {
       datarow[i+1] = TFD(ADCRead(i));
       delay(50);
     }
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
     
     
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, LOW);
     delay(200); //delay before setting mux
+<<<<<<< HEAD
+    temp[7] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(50);
+    temp[8] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(50);
+    temp[9] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(50);
+    temp[10] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(50);
+    temp[11] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(50);
+    temp[12] = TFD(adc.read(MCP3208::SINGLE_5));
+    delay(50);
+=======
     for(int i = 0; i<6; i++) {
       datarow[i+7] = TFD(ADCRead(i));
       delay(50);
     }
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
     
     
     digitalWrite(MUX_A, HIGH);
     digitalWrite(MUX_B, HIGH);
     delay(200); //delay before setting mux
+<<<<<<< HEAD
+    temp[13] = TFD(adc.read(MCP3208::SINGLE_0));
+    delay(50);
+    temp[14] = TFD(adc.read(MCP3208::SINGLE_1));
+    delay(50);
+    temp[15] = TFD(adc.read(MCP3208::SINGLE_2));
+    delay(50);
+    temp[16] = TFD(adc.read(MCP3208::SINGLE_3));
+    delay(50);
+    temp[17] = TFD(adc.read(MCP3208::SINGLE_4));
+    delay(50);
+    temp[18] = TFD(adc.read(MCP3208::SINGLE_5));
+    delay(50);
+=======
     for(int i = 0; i<6; i++) {
       datarow[i+13] = TFD(ADCRead(i));
       delay(50);
     }
+>>>>>>> c4b165e57602330043de48aee2b54bc42940fc99
     
   
     // Calculate the average temperature of the board
