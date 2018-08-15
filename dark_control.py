@@ -120,7 +120,7 @@ def run(goal, time, control_alg, cool_down):
         elif cool_down and stop_heat:
             heater.ChangeDutyCycle(0)
             current_DC=0 
-            if current_time>=time+200: #cooldown is set to 30 seconds
+            if current_time>=time+1200: #cooldown is set to 30 seconds
                 raise KeyboardInterrupt('cool_down complete')
         else:
             raise KeyboardInterrupt('heat test done')
@@ -328,7 +328,7 @@ def cooling(temp, goal) :
     '''
     Heaters off
     '''
-    current_DC =50.0
+    current_DC =100.0
     heater.ChangeDutyCycle(current_DC)
     return current_DC
     
@@ -349,7 +349,7 @@ try:
     '''
     Arguments for run() : goal temp, seconds to run with heat, control_alg, cool_down boolean (set to 30 seconds, change in run())
     '''
-    run(35, 120, cooling, cool_down=True)
+    run(35, 70, cooling, cool_down=True)
 except KeyboardInterrupt:
     print ('\n')
 finally:
