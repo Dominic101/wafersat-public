@@ -1,5 +1,6 @@
-
 /*
+Author: Karolina Podsada and George Chen
+August 14, 2018
 GET SDFAT LIBRARY: https://github.com/greiman/SdFat
 GET SOFTSPI LIBRARY: https://github.com/MajenkoLibraries/SoftSPI
 GET MCP3208 LIBRARY : https://www.arduinolibraries.info/libraries/mcp3208
